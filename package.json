@@ -1,0 +1,27 @@
+{
+  "name": "vocallis-backend",
+  "version": "1.0.0",
+  "description": "VoCALLis Backend API",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "@deepgram/sdk": "^5.4.0",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/env": "^7.0.0",
+    "@fastify/websocket": "^11.2.0",
+    "dotenv": "^16.4.5",
+    "fastify": "^5.8.5"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.9.3",
+    "nodemon": "^3.1.4",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
