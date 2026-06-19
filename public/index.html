@@ -3,480 +3,133 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vocallis – Asistent Vocal</title>
+  <title>Vocallis – Alege Asistentul</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #0f0f13;
-      color: #e8e8f0;
-      height: 100vh;
+      background: #0d0d11;
+      color: #e2e2ed;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
-    }
-
-    /* ── Header ── */
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 24px;
-      border-bottom: 1px solid #1e1e28;
-      flex-shrink: 0;
-    }
-    .logo { font-size: 1.2rem; font-weight: 700; color: #fff; }
-    .logo span { color: #7c6dfa; }
-    .logo small { font-weight: 400; font-size: 0.78rem; color: #555; margin-left: 8px; }
-
-    #status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 5px 13px;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      background: #1a1a22;
-      border: 1px solid #2e2e3e;
-      transition: all 0.3s;
-    }
-    #status-badge .dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: #444;
-      transition: background 0.3s;
-    }
-    #status-badge.listening .dot  { background: #7c6dfa; animation: pulse 1.2s infinite; }
-    #status-badge.thinking .dot   { background: #facc15; animation: pulse 1.2s infinite; }
-    #status-badge.connected .dot  { background: #4ade80; }
-    #status-badge.error .dot      { background: #f87171; }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50%       { opacity: 0.4; transform: scale(1.5); }
-    }
-
-    /* ── Chat area ── */
-    #chat {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      scroll-behavior: smooth;
-    }
-    #chat::-webkit-scrollbar { width: 5px; }
-    #chat::-webkit-scrollbar-track { background: transparent; }
-    #chat::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
-
-    .bubble-row {
-      display: flex;
-      animation: slide-in 0.22s ease;
-    }
-    @keyframes slide-in {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .bubble-row.user     { justify-content: flex-end; }
-    .bubble-row.assistant { justify-content: flex-start; }
-
-    .bubble {
-      max-width: 72%;
-      padding: 11px 16px;
-      border-radius: 18px;
-      font-size: 0.97rem;
-      line-height: 1.55;
-    }
-    .bubble-row.user .bubble {
-      background: #7c6dfa;
-      color: #fff;
-      border-bottom-right-radius: 5px;
-    }
-    .bubble-row.assistant .bubble {
-      background: #1e1e2e;
-      color: #ddd;
-      border: 1px solid #2a2a3e;
-      border-bottom-left-radius: 5px;
-    }
-    .bubble-row.error .bubble {
-      background: #2a1a1a;
-      color: #f87171;
-      border: 1px solid #3a2020;
-      border-radius: 12px;
-    }
-
-    /* Order confirmation card */
-    .order-card {
-      align-self: center;
-      width: 100%;
-      max-width: 420px;
-      background: #0d2318;
-      border: 1px solid #1a5c35;
-      border-radius: 14px;
-      padding: 14px 18px;
-      animation: slide-in 0.25s ease;
-    }
-    .order-card-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.8rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: #4ade80;
-      margin-bottom: 10px;
-    }
-    .order-card-id {
-      font-size: 0.72rem;
-      color: #2d6a47;
-      margin-left: auto;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-    }
-    .order-card-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.88rem;
-      padding: 4px 0;
-      border-bottom: 1px solid #1a3a28;
-      color: #ccc;
-    }
-    .order-card-row:last-child { border-bottom: none; }
-    .order-card-row span:first-child { color: #555; font-size: 0.78rem; }
-
-    .bubble .sender {
-      font-size: 0.68rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 5px;
-      opacity: 0.55;
-    }
-
-    /* Thinking dots */
-    .thinking-dots span {
-      display: inline-block;
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: #7c6dfa;
-      margin: 0 2px;
-      animation: bounce 1.1s infinite ease-in-out;
-    }
-    .thinking-dots span:nth-child(2) { animation-delay: 0.18s; }
-    .thinking-dots span:nth-child(3) { animation-delay: 0.36s; }
-    @keyframes bounce {
-      0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-      40%            { transform: translateY(-7px); opacity: 1; }
-    }
-
-    #empty-state {
-      margin: auto;
-      text-align: center;
-      color: #333;
-    }
-    #empty-state p { font-size: 0.9rem; margin-top: 8px; }
-
-    /* ── Bottom bar ── */
-    #bottom-bar {
-      flex-shrink: 0;
-      border-top: 1px solid #1e1e28;
-      padding: 16px 24px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      background: #0f0f13;
-    }
-
-    #interim-ticker {
-      font-size: 0.88rem;
-      color: #555;
-      font-style: italic;
-      min-height: 20px;
-      text-align: center;
-      transition: color 0.2s;
-    }
-    #interim-ticker.active { color: #9d8ff5; }
-
-    .bottom-controls {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    #mic-btn {
-      width: 64px; height: 64px;
-      border-radius: 50%;
-      border: none;
-      cursor: pointer;
-      background: #7c6dfa;
-      color: #fff;
-      font-size: 1.6rem;
-      display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.2s, transform 0.15s;
-      box-shadow: 0 0 0 0 rgba(124, 109, 250, 0.4);
-    }
-    #mic-btn:hover:not(:disabled) { background: #6b5ce7; transform: scale(1.06); }
-    #mic-btn.recording {
-      background: #f87171;
-      animation: mic-ring 1.5s infinite;
-    }
-    #mic-btn.recording:hover { background: #ef4444; }
-    #mic-btn:disabled { opacity: 0.4; cursor: default; }
-    @keyframes mic-ring {
-      0%   { box-shadow: 0 0 0 0   rgba(248,113,113,0.5); }
-      70%  { box-shadow: 0 0 0 16px rgba(248,113,113,0); }
-      100% { box-shadow: 0 0 0 0   rgba(248,113,113,0); }
+      padding: 24px;
     }
 
-    #clear-btn {
-      background: none;
-      border: 1px solid #2a2a3a;
-      color: #555;
-      font-size: 0.78rem;
-      padding: 6px 14px;
-      border-radius: 8px;
+    .logo { font-size: 1.4rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+    .logo span { color: #6ee7b7; }
+    .logo small { display: block; font-weight: 400; font-size: 0.75rem; color: #333; margin-top: 2px; letter-spacing: 0; }
+
+    .tagline {
+      font-size: 0.9rem;
+      color: #2e2e44;
+      margin-top: 6px;
+    }
+
+    .cards {
+      display: flex;
+      gap: 20px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      width: 260px;
+      background: #111118;
+      border: 1px solid #1e1e2e;
+      border-radius: 20px;
+      padding: 28px 24px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
       cursor: pointer;
-      transition: color 0.2s, border-color 0.2s;
     }
-    #clear-btn:hover { color: #f87171; border-color: #f87171; }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .card.support { border-color: #1e2e28; }
+    .card.support:hover { border-color: #34d399; box-shadow: 0 8px 32px rgba(52,211,153,0.1); }
+    .card.orders  { border-color: #1e2420; }
+    .card.orders:hover  { border-color: #4ade80; box-shadow: 0 8px 32px rgba(74,222,128,0.1); }
 
-    #mic-label { font-size: 0.78rem; color: #555; }
+    .card-icon {
+      font-size: 2.2rem;
+      margin-bottom: 16px;
+      width: 52px; height: 52px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 14px;
+    }
+    .card.support .card-icon { background: #0d1f18; }
+    .card.orders  .card-icon { background: #0a1f10; }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #e2e2ed;
+      margin-bottom: 6px;
+    }
+    .card.support .card-title { color: #6ee7b7; }
+    .card.orders  .card-title { color: #4ade80; }
+
+    .card-desc {
+      font-size: 0.82rem;
+      color: #3a3a55;
+      line-height: 1.55;
+    }
+
+    .card-arrow {
+      margin-top: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      opacity: 0.3;
+      transition: opacity 0.2s;
+    }
+    .card:hover .card-arrow { opacity: 1; }
+    .card.support .card-arrow { color: #6ee7b7; }
+    .card.orders  .card-arrow { color: #4ade80; }
+
+    .footer {
+      margin-top: 48px;
+      font-size: 0.72rem;
+      color: #1e1e2e;
+    }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="logo">Vocallis <span>AI</span><small>TechMD SRL · Asistent Vocal</small></div>
-    <div id="status-badge">
-      <span class="dot"></span>
-      <span id="status-text">Deconectat</span>
-    </div>
-  </header>
+  <div class="logo">
+    Vocallis <span>AI</span>
+    <small>TechMD SRL · Platformă Vocală</small>
+  </div>
+  <p class="tagline">Alege asistentul cu care vrei să vorbești</p>
 
-  <div id="chat">
-    <div id="empty-state">
-      <p>Apasă butonul de microfon și pune o întrebare despre TechMD SRL.</p>
-    </div>
+  <div class="cards">
+
+    <a href="/bot.html" class="card support">
+      <div class="card-icon">🎧</div>
+      <div class="card-title">Suport Clienți</div>
+      <p class="card-desc">Întrebări despre produse, prețuri, implementare și suport tehnic. Răspunde în română și rusă.</p>
+      <div class="card-arrow">Deschide →</div>
+    </a>
+
+    <a href="/orders.html" class="card orders">
+      <div class="card-icon">🛒</div>
+      <div class="card-title">Plasare Comenzi</div>
+      <p class="card-desc">Comandă vocal un produs TechMD — ghidat pas cu pas până la confirmare.</p>
+      <div class="card-arrow">Deschide →</div>
+    </a>
+
   </div>
 
-  <div id="bottom-bar">
-    <div id="interim-ticker">—</div>
-    <div class="bottom-controls">
-      <button id="clear-btn" title="Șterge conversația">Resetează</button>
-      <button id="mic-btn" title="Pornește microfonul">🎤</button>
-      <span id="mic-label">Apasă pentru a vorbi</span>
-    </div>
-  </div>
+  <p class="footer">TechMD SRL · str. Ștefan cel Mare 100, Chișinău</p>
 
-  <script>
-    const micBtn      = document.getElementById('mic-btn')
-    const micLabel    = document.getElementById('mic-label')
-    const statusBadge = document.getElementById('status-badge')
-    const statusText  = document.getElementById('status-text')
-    const interimTicker = document.getElementById('interim-ticker')
-    const chat        = document.getElementById('chat')
-    const emptyState  = document.getElementById('empty-state')
-    const clearBtn    = document.getElementById('clear-btn')
-
-    let ws        = null
-    let audioCtx  = null
-    let processor = null
-    let micStream = null
-    let recording = false
-
-    // ── Helpers ────────────────────────────────────────────────────────────────
-
-    function setStatus(state, text) {
-      statusBadge.className = ''
-      if (state) statusBadge.classList.add(state)
-      statusText.textContent = text
-    }
-
-    function ts() {
-      const n = new Date()
-      return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`
-    }
-
-    function addBubble(role, text) {
-      if (emptyState && emptyState.parentNode) emptyState.remove()
-      const row = document.createElement('div')
-      row.className = `bubble-row ${role}`
-      const label = role === 'user' ? 'Tu' : role === 'assistant' ? 'TechMD AI' : 'Eroare'
-      row.innerHTML = `
-        <div class="bubble">
-          <div class="sender">${label} · ${ts()}</div>
-          ${escHtml(text)}
-        </div>`
-      chat.appendChild(row)
-      chat.scrollTop = chat.scrollHeight
-      return row
-    }
-
-    function addThinking() {
-      if (emptyState && emptyState.parentNode) emptyState.remove()
-      const row = document.createElement('div')
-      row.className = 'bubble-row assistant'
-      row.id = 'thinking-bubble'
-      row.innerHTML = `<div class="bubble"><div class="thinking-dots"><span></span><span></span><span></span></div></div>`
-      chat.appendChild(row)
-      chat.scrollTop = chat.scrollHeight
-    }
-
-    function removeThinking() {
-      const el = document.getElementById('thinking-bubble')
-      if (el) el.remove()
-    }
-
-    function escHtml(str) {
-      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    }
-
-    function addOrderCard(order) {
-      if (emptyState && emptyState.parentNode) emptyState.remove()
-      const card = document.createElement('div')
-      card.className = 'order-card'
-      card.innerHTML = `
-        <div class="order-card-header">
-          ✅ Comandă plasată
-          <span class="order-card-id">${escHtml(order.id)}</span>
-        </div>
-        <div class="order-card-row"><span>Produs</span><span>${escHtml(order.product)}</span></div>
-        <div class="order-card-row"><span>Plan</span><span>${escHtml(order.plan)}</span></div>
-        <div class="order-card-row"><span>Client</span><span>${escHtml(order.customer_name)}</span></div>
-      `
-      chat.appendChild(card)
-      chat.scrollTop = chat.scrollHeight
-    }
-
-    function setInterim(text) {
-      interimTicker.textContent = text || '—'
-      interimTicker.className = text ? 'active' : ''
-    }
-
-    // ── Audio pipeline ─────────────────────────────────────────────────────────
-
-    function startPCM(stream) {
-      audioCtx = new AudioContext({ sampleRate: 16000 })
-      const source = audioCtx.createMediaStreamSource(stream)
-      processor = audioCtx.createScriptProcessor(4096, 1, 1)
-      source.connect(processor)
-      processor.connect(audioCtx.destination)
-      processor.onaudioprocess = (e) => {
-        if (ws.readyState !== WebSocket.OPEN) return
-        const f32 = e.inputBuffer.getChannelData(0)
-        const i16 = new Int16Array(f32.length)
-        for (let i = 0; i < f32.length; i++) {
-          i16[i] = Math.max(-32768, Math.min(32767, Math.round(f32[i] * 32768)))
-        }
-        ws.send(i16.buffer)
-      }
-    }
-
-    function stopAudio() {
-      if (processor) { processor.disconnect(); processor = null }
-      if (audioCtx)  { audioCtx.close();       audioCtx  = null }
-      if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null }
-    }
-
-    // ── Session ────────────────────────────────────────────────────────────────
-
-    async function startSession() {
-      try {
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-      } catch (err) {
-        setStatus('error', 'Microfon indisponibil')
-        return
-      }
-
-      ws = new WebSocket(`ws://${location.host}/ws/assistant`)
-      ws.binaryType = 'arraybuffer'
-
-      ws.onopen = () => {
-        setStatus('listening', 'Ascultă...')
-        micBtn.classList.add('recording')
-        micBtn.title = 'Oprește'
-        micLabel.textContent = 'Apasă pentru a opri'
-        recording = true
-        startPCM(micStream)
-      }
-
-      ws.onmessage = (e) => {
-        const msg = JSON.parse(e.data)
-
-        if (msg.type === 'interim') {
-          setInterim(msg.text)
-
-        } else if (msg.type === 'user') {
-          setInterim('')
-          addBubble('user', msg.text)
-
-        } else if (msg.type === 'thinking') {
-          setStatus('thinking', 'Se gândește...')
-          micBtn.disabled = true
-          addThinking()
-
-        } else if (msg.type === 'assistant') {
-          removeThinking()
-          addBubble('assistant', msg.text)
-          setStatus('listening', 'Ascultă...')
-          micBtn.disabled = false
-
-        } else if (msg.type === 'order_confirmed') {
-          addOrderCard(msg.order)
-
-        } else if (msg.type === 'error') {
-          removeThinking()
-          addBubble('error', msg.message)
-          setStatus('listening', 'Ascultă...')
-          micBtn.disabled = false
-        }
-      }
-
-      ws.onclose = () => {
-        stopSession(false)
-        setStatus('', 'Deconectat')
-      }
-
-      ws.onerror = () => {
-        setStatus('error', 'Eroare conexiune')
-      }
-    }
-
-    function stopSession(closeWs = true) {
-      stopAudio()
-      if (closeWs && ws && ws.readyState === WebSocket.OPEN) {
-        ws.close()
-        ws = null
-      }
-      recording = false
-      micBtn.classList.remove('recording')
-      micBtn.disabled = false
-      micBtn.title = 'Pornește microfonul'
-      micLabel.textContent = 'Apasă pentru a vorbi'
-      setInterim('')
-      removeThinking()
-    }
-
-    // ── Events ─────────────────────────────────────────────────────────────────
-
-    micBtn.addEventListener('click', () => {
-      if (recording) {
-        stopSession(true)
-        setStatus('', 'Deconectat')
-      } else {
-        startSession()
-      }
-    })
-
-    clearBtn.addEventListener('click', () => {
-      chat.innerHTML = `<div id="empty-state"><p>Apasă butonul de microfon și pune o întrebare despre TechMD SRL.</p></div>`
-    })
-  </script>
 </body>
 </html>

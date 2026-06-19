@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vocallis – Plasare Comenzi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0f0d;
+      color: #e2e8e4;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      border-bottom: 1px solid #1a2420;
+      flex-shrink: 0;
+      background: #0a0f0d;
+    }
+    .logo { font-size: 1.15rem; font-weight: 700; color: #fff; }
+    .logo span { color: #34d399; }
+    .logo small { font-weight: 400; font-size: 0.76rem; color: #344; margin-left: 8px; }
+
+    #status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 13px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      background: #111a16;
+      border: 1px solid #1e3028;
+      transition: all 0.3s;
+    }
+    #status-badge .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #1e3028;
+      transition: background 0.3s;
+    }
+    #status-badge.listening .dot  { background: #34d399; animation: pulse 1.2s infinite; }
+    #status-badge.thinking  .dot  { background: #fbbf24; animation: pulse 1.2s infinite; }
+    #status-badge.connected .dot  { background: #4ade80; }
+    #status-badge.error     .dot  { background: #f87171; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.35; transform: scale(1.6); }
+    }
+
+    /* ── Chat ── */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 18px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      scroll-behavior: smooth;
+    }
+    #chat::-webkit-scrollbar { width: 4px; }
+    #chat::-webkit-scrollbar-track { background: transparent; }
+    #chat::-webkit-scrollbar-thumb { background: #1e2e28; border-radius: 4px; }
+
+    .bubble-row {
+      display: flex;
+      animation: slide-in 0.2s ease;
+    }
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .bubble-row.user      { justify-content: flex-end; }
+    .bubble-row.assistant { justify-content: flex-start; }
+
+    .bubble {
+      max-width: 74%;
+      padding: 10px 15px;
+      border-radius: 18px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .bubble .sender {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      opacity: 0.45;
+      margin-bottom: 4px;
+    }
+    .bubble-row.user .bubble {
+      background: #065f46;
+      color: #d1fae5;
+      border-bottom-right-radius: 4px;
+    }
+    .bubble-row.assistant .bubble {
+      background: #111a16;
+      color: #c6e8d8;
+      border: 1px solid #1e3028;
+      border-bottom-left-radius: 4px;
+    }
+    .bubble-row.error .bubble {
+      background: #1f1010;
+      color: #f87171;
+      border: 1px solid #3a1c1c;
+      border-radius: 12px;
+    }
+
+    /* Thinking dots */
+    .thinking-dots span {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #34d399;
+      margin: 0 2px;
+      animation: bounce 1.1s infinite ease-in-out;
+    }
+    .thinking-dots span:nth-child(2) { animation-delay: 0.18s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0);   opacity: 0.35; }
+      40%            { transform: translateY(-7px); opacity: 1; }
+    }
+
+    /* Order confirmation card */
+    .order-card {
+      align-self: center;
+      width: 100%;
+      max-width: 420px;
+      background: #0a1f16;
+      border: 1px solid #1a5c38;
+      border-radius: 14px;
+      padding: 14px 18px;
+      animation: slide-in 0.25s ease;
+    }
+    .order-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #34d399;
+      margin-bottom: 10px;
+    }
+    .order-card-id {
+      font-size: 0.72rem;
+      color: #1a5c38;
+      margin-left: auto;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .order-card-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.88rem;
+      padding: 5px 0;
+      border-bottom: 1px solid #1a2e22;
+      color: #9ed4b8;
+    }
+    .order-card-row:last-child { border-bottom: none; }
+    .order-card-row span:first-child { color: #3a5a4a; font-size: 0.78rem; }
+
+    #empty-state {
+      margin: auto;
+      text-align: center;
+      color: #1a2e22;
+    }
+    #empty-state svg { width: 52px; height: 52px; margin-bottom: 14px; opacity: 0.4; }
+    #empty-state p { font-size: 0.88rem; color: #2a4a38; }
+
+    /* ── Bottom bar ── */
+    #bottom-bar {
+      flex-shrink: 0;
+      border-top: 1px solid #1a2420;
+      padding: 14px 22px 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      background: #0a0f0d;
+    }
+
+    #interim-ticker {
+      font-size: 0.86rem;
+      color: #1e3028;
+      font-style: italic;
+      min-height: 20px;
+      text-align: center;
+      max-width: 600px;
+      transition: color 0.2s;
+    }
+    #interim-ticker.active { color: #34d399; }
+
+    .bottom-controls {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    #mic-btn {
+      width: 62px; height: 62px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      background: #059669;
+      color: #fff;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, transform 0.15s;
+      box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.4);
+    }
+    #mic-btn:hover:not(:disabled) { background: #047857; transform: scale(1.06); }
+    #mic-btn.recording {
+      background: #dc2626;
+      animation: mic-ring 1.5s infinite;
+    }
+    #mic-btn.recording:hover { background: #b91c1c; }
+    #mic-btn:disabled { opacity: 0.35; cursor: default; transform: none !important; }
+    @keyframes mic-ring {
+      0%   { box-shadow: 0 0 0 0   rgba(220,38,38,0.5); }
+      70%  { box-shadow: 0 0 0 16px rgba(220,38,38,0); }
+      100% { box-shadow: 0 0 0 0   rgba(220,38,38,0); }
+    }
+
+    #clear-btn {
+      background: none;
+      border: 1px solid #1e3028;
+      color: #3a5a4a;
+      font-size: 0.76rem;
+      padding: 6px 13px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    #clear-btn:hover { color: #f87171; border-color: #f87171; }
+
+    #mic-label { font-size: 0.76rem; color: #2a4a38; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div style="display:flex;align-items:center;gap:14px">
+      <a href="/" style="color:#2a4a38;font-size:0.8rem;text-decoration:none;border:1px solid #1e3028;padding:4px 10px;border-radius:7px;transition:color .2s" onmouseover="this.style.color='#34d399'" onmouseout="this.style.color='#2a4a38'">← Acasă</a>
+      <div class="logo">Vocallis <span>Comenzi</span><small>Plasare Comenzi · TechMD SRL</small></div>
+    </div>
+    <div id="status-badge">
+      <span class="dot"></span>
+      <span id="status-text">Deconectat</span>
+    </div>
+  </header>
+
+  <div id="chat">
+    <div id="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-1.4 5h12.8"/>
+        <circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
+      </svg>
+      <p>Spune ce produs vrei să comanzi și te ghidez pas cu pas.</p>
+    </div>
+  </div>
+
+  <div id="bottom-bar">
+    <div id="interim-ticker">—</div>
+    <div class="bottom-controls">
+      <button id="clear-btn">Resetează</button>
+      <button id="mic-btn" title="Pornește microfonul">🎤</button>
+      <span id="mic-label">Apasă pentru a vorbi</span>
+    </div>
+  </div>
+
+  <script>
+    const micBtn        = document.getElementById('mic-btn')
+    const micLabel      = document.getElementById('mic-label')
+    const statusBadge   = document.getElementById('status-badge')
+    const statusText    = document.getElementById('status-text')
+    const interimTicker = document.getElementById('interim-ticker')
+    const chat          = document.getElementById('chat')
+    const clearBtn      = document.getElementById('clear-btn')
+
+    let ws        = null
+    let audioCtx  = null
+    let processor = null
+    let micStream = null
+    let recording = false
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function setStatus(state, text) {
+      statusBadge.className = ''
+      if (state) statusBadge.classList.add(state)
+      statusText.textContent = text
+    }
+
+    function ts() {
+      const n = new Date()
+      return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    }
+
+    function removeEmptyState() {
+      const el = document.getElementById('empty-state')
+      if (el) el.remove()
+    }
+
+    function addBubble(role, text) {
+      removeEmptyState()
+      const row = document.createElement('div')
+      row.className = `bubble-row ${role}`
+      const label = role === 'user' ? 'Tu' : role === 'error' ? 'Eroare' : 'Vocallis'
+      row.innerHTML = `<div class="bubble"><div class="sender">${label} · ${ts()}</div>${escHtml(text)}</div>`
+      chat.appendChild(row)
+      chat.scrollTop = chat.scrollHeight
+      return row
+    }
+
+    function addThinking() {
+      removeEmptyState()
+      const row = document.createElement('div')
+      row.className = 'bubble-row assistant'
+      row.id = 'thinking-bubble'
+      row.innerHTML = `<div class="bubble"><div class="thinking-dots"><span></span><span></span><span></span></div></div>`
+      chat.appendChild(row)
+      chat.scrollTop = chat.scrollHeight
+    }
+
+    function removeThinking() {
+      const el = document.getElementById('thinking-bubble')
+      if (el) el.remove()
+    }
+
+    function addOrderCard(order) {
+      removeEmptyState()
+      const card = document.createElement('div')
+      card.className = 'order-card'
+      card.innerHTML = `
+        <div class="order-card-header">
+          ✅ Comandă plasată
+          <span class="order-card-id">${escHtml(order.id)}</span>
+        </div>
+        <div class="order-card-row"><span>Produs</span><span>${escHtml(order.product)}</span></div>
+        <div class="order-card-row"><span>Plan</span><span>${escHtml(order.plan)}</span></div>
+        <div class="order-card-row"><span>Client</span><span>${escHtml(order.customer_name)}</span></div>
+      `
+      chat.appendChild(card)
+      chat.scrollTop = chat.scrollHeight
+    }
+
+    function setInterim(text) {
+      interimTicker.textContent = text || '—'
+      interimTicker.className   = text ? 'active' : ''
+    }
+
+    // ── Audio pipeline ────────────────────────────────────────────────────────
+
+    function startPCM(stream) {
+      audioCtx  = new AudioContext({ sampleRate: 16000 })
+      const src = audioCtx.createMediaStreamSource(stream)
+      processor = audioCtx.createScriptProcessor(4096, 1, 1)
+      src.connect(processor)
+      processor.connect(audioCtx.destination)
+      processor.onaudioprocess = (e) => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return
+        const f32 = e.inputBuffer.getChannelData(0)
+        const i16 = new Int16Array(f32.length)
+        for (let i = 0; i < f32.length; i++) {
+          i16[i] = Math.max(-32768, Math.min(32767, Math.round(f32[i] * 32768)))
+        }
+        ws.send(i16.buffer)
+      }
+    }
+
+    function stopAudio() {
+      if (processor) { processor.disconnect(); processor = null }
+      if (audioCtx)  { audioCtx.close();       audioCtx  = null }
+      if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null }
+    }
+
+    // ── Session ───────────────────────────────────────────────────────────────
+
+    async function startSession() {
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      } catch {
+        setStatus('error', 'Microfon indisponibil')
+        return
+      }
+
+      ws = new WebSocket(`ws://${location.host}/ws/orders`)
+      ws.binaryType = 'arraybuffer'
+
+      ws.onopen = () => {
+        setStatus('listening', 'Ascultă...')
+        micBtn.classList.add('recording')
+        micBtn.title         = 'Oprește'
+        micLabel.textContent = 'Apasă pentru a opri'
+        recording            = true
+        startPCM(micStream)
+      }
+
+      ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data)
+
+        if (msg.type === 'interim') {
+          setInterim(msg.text)
+
+        } else if (msg.type === 'user') {
+          setInterim('')
+          addBubble('user', msg.text)
+
+        } else if (msg.type === 'thinking') {
+          setStatus('thinking', 'Procesează...')
+          micBtn.disabled = true
+          addThinking()
+
+        } else if (msg.type === 'assistant') {
+          removeThinking()
+          addBubble('assistant', msg.text)
+          setStatus('listening', 'Ascultă...')
+          micBtn.disabled = false
+
+        } else if (msg.type === 'order_confirmed') {
+          addOrderCard(msg.order)
+
+        } else if (msg.type === 'error') {
+          removeThinking()
+          addBubble('error', msg.message)
+          setStatus('listening', 'Ascultă...')
+          micBtn.disabled = false
+        }
+      }
+
+      ws.onclose = () => {
+        stopSession(false)
+        setStatus('', 'Deconectat')
+      }
+
+      ws.onerror = () => setStatus('error', 'Eroare conexiune')
+    }
+
+    function stopSession(closeWs = true) {
+      stopAudio()
+      if (closeWs && ws && ws.readyState === WebSocket.OPEN) {
+        ws.close()
+        ws = null
+      }
+      recording = false
+      micBtn.classList.remove('recording')
+      micBtn.disabled      = false
+      micBtn.title         = 'Pornește microfonul'
+      micLabel.textContent = 'Apasă pentru a vorbi'
+      setInterim('')
+      removeThinking()
+    }
+
+    // ── Events ────────────────────────────────────────────────────────────────
+
+    micBtn.addEventListener('click', () => {
+      if (recording) {
+        stopSession(true)
+        setStatus('', 'Deconectat')
+      } else {
+        startSession()
+      }
+    })
+
+    clearBtn.addEventListener('click', () => {
+      chat.innerHTML = `<div id="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-1.4 5h12.8"/><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/></svg><p>Spune ce produs vrei să comanzi și te ghidez pas cu pas.</p></div>`
+    })
+  </script>
+</body>
+</html>
