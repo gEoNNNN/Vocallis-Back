@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vocallis – Test STT</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f0f13;
+      color: #e8e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      gap: 32px;
+    }
+
+    header {
+      text-align: center;
+    }
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+    header h1 span { color: #7c6dfa; }
+    header p {
+      margin-top: 6px;
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    #status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      background: #1e1e28;
+      border: 1px solid #2e2e3e;
+      transition: all 0.3s;
+    }
+    #status-badge .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #555;
+      transition: background 0.3s;
+    }
+    #status-badge.connected .dot  { background: #4ade80; }
+    #status-badge.listening .dot  { background: #7c6dfa; animation: pulse 1.2s infinite; }
+    #status-badge.error .dot      { background: #f87171; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(1.4); }
+    }
+
+    #mic-btn {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      background: #7c6dfa;
+      color: #fff;
+      font-size: 1.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 0 0 rgba(124, 109, 250, 0.4);
+      transition: background 0.2s, transform 0.15s;
+    }
+    #mic-btn:hover { background: #6b5ce7; transform: scale(1.06); }
+    #mic-btn.recording {
+      background: #f87171;
+      animation: mic-ring 1.5s infinite;
+    }
+    #mic-btn.recording:hover { background: #ef4444; }
+    @keyframes mic-ring {
+      0%   { box-shadow: 0 0 0 0   rgba(248,113,113,0.5); }
+      70%  { box-shadow: 0 0 0 18px rgba(248,113,113,0); }
+      100% { box-shadow: 0 0 0 0   rgba(248,113,113,0); }
+    }
+
+    #btn-label {
+      font-size: 0.85rem;
+      color: #888;
+      margin-top: -16px;
+    }
+
+    #transcript-panel {
+      width: 100%;
+      max-width: 760px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #555;
+    }
+
+    #interim-box {
+      background: #16161f;
+      border: 1px solid #2a2a3a;
+      border-radius: 12px;
+      padding: 16px 20px;
+      min-height: 60px;
+      font-size: 1.05rem;
+      color: #888;
+      font-style: italic;
+      line-height: 1.6;
+    }
+    #interim-box.active { color: #bbb; border-color: #7c6dfa55; }
+
+    #history-box {
+      background: #16161f;
+      border: 1px solid #2a2a3a;
+      border-radius: 12px;
+      padding: 16px 20px;
+      min-height: 200px;
+      max-height: 420px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 1rem;
+      line-height: 1.6;
+      scroll-behavior: smooth;
+    }
+    #history-box::-webkit-scrollbar { width: 6px; }
+    #history-box::-webkit-scrollbar-track { background: transparent; }
+    #history-box::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    .history-entry {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      animation: fade-in 0.25s ease;
+    }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .history-entry .ts {
+      font-size: 0.72rem;
+      color: #444;
+      white-space: nowrap;
+      padding-top: 3px;
+      min-width: 48px;
+    }
+    .history-entry .text { color: #ddd; }
+
+    #empty-msg {
+      color: #333;
+      font-style: italic;
+      font-size: 0.9rem;
+      margin: auto;
+      text-align: center;
+    }
+
+    #clear-btn {
+      align-self: flex-end;
+      background: none;
+      border: 1px solid #2e2e3e;
+      color: #555;
+      font-size: 0.78rem;
+      padding: 4px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    #clear-btn:hover { color: #f87171; border-color: #f87171; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Vocallis <span>STT</span></h1>
+    <p>Test transcriere în timp real · Deepgram Nova-3</p>
+  </header>
+
+  <div id="status-badge">
+    <span class="dot"></span>
+    <span id="status-text">Deconectat</span>
+  </div>
+
+  <button id="mic-btn" title="Pornește înregistrarea">🎤</button>
+  <p id="btn-label">Apasă pentru a înregistra</p>
+
+  <section id="transcript-panel">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span class="panel-title">Transcriere curentă</span>
+    </div>
+    <div id="interim-box">În așteptare...</div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+      <span class="panel-title">Istoric</span>
+      <button id="clear-btn">Șterge istoricul</button>
+    </div>
+    <div id="history-box">
+      <span id="empty-msg">Istoricul transcrierii va apărea aici.</span>
+    </div>
+  </section>
+
+  <script>
+    const micBtn     = document.getElementById('mic-btn')
+    const btnLabel   = document.getElementById('btn-label')
+    const statusBadge = document.getElementById('status-badge')
+    const statusText = document.getElementById('status-text')
+    const interimBox = document.getElementById('interim-box')
+    const historyBox = document.getElementById('history-box')
+    const emptyMsg   = document.getElementById('empty-msg')
+    const clearBtn   = document.getElementById('clear-btn')
+
+    let ws          = null
+    let audioCtx    = null
+    let processor   = null
+    let micStream   = null
+    let recording   = false
+
+    function setStatus(state, text) {
+      statusBadge.className = ''
+      if (state) statusBadge.classList.add(state)
+      statusText.textContent = text
+    }
+
+    function addToHistory(text) {
+      if (emptyMsg) emptyMsg.remove()
+      const entry = document.createElement('div')
+      entry.className = 'history-entry'
+      const now = new Date()
+      const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+      entry.innerHTML = `<span class="ts">${ts}</span><span class="text">${text}</span>`
+      historyBox.appendChild(entry)
+      historyBox.scrollTop = historyBox.scrollHeight
+    }
+
+    async function startRecording() {
+      let stream
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      } catch (err) {
+        setStatus('error', 'Acces microfon refuzat')
+        console.error('[MIC]', err)
+        return
+      }
+
+      micStream = stream
+      ws = new WebSocket(`ws://${location.host}/ws/stt`)
+      ws.binaryType = 'arraybuffer'
+
+      ws.onopen = () => {
+        setStatus('listening', 'Ascultă...')
+
+        audioCtx = new AudioContext({ sampleRate: 16000 })
+        const source = audioCtx.createMediaStreamSource(stream)
+        processor = audioCtx.createScriptProcessor(4096, 1, 1)
+
+        source.connect(processor)
+        processor.connect(audioCtx.destination)
+
+        processor.onaudioprocess = (e) => {
+          if (ws.readyState !== WebSocket.OPEN) return
+          const float32 = e.inputBuffer.getChannelData(0)
+          const int16 = new Int16Array(float32.length)
+          for (let i = 0; i < float32.length; i++) {
+            int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32768)))
+          }
+          ws.send(int16.buffer)
+        }
+      }
+
+      ws.onmessage = (e) => {
+        const data = JSON.parse(e.data)
+        if (data.transcript) {
+          if (data.is_final) {
+            addToHistory(data.transcript)
+            interimBox.textContent = ''
+            interimBox.classList.remove('active')
+          } else {
+            interimBox.textContent = data.transcript
+            interimBox.classList.add('active')
+          }
+        }
+      }
+
+      ws.onclose = () => {
+        setStatus('', 'Deconectat')
+        stopRecording(false)
+      }
+
+      ws.onerror = (err) => {
+        console.error('[WS]', err)
+        setStatus('error', 'Eroare conexiune')
+      }
+
+      setStatus('connected', 'Conectat')
+      recording = true
+      micBtn.classList.add('recording')
+      micBtn.title = 'Oprește înregistrarea'
+      btnLabel.textContent = 'Apasă pentru a opri'
+      interimBox.textContent = 'Vorbește...'
+      interimBox.classList.add('active')
+    }
+
+    function stopRecording(closeWs = true) {
+      if (processor) { processor.disconnect(); processor = null }
+      if (audioCtx)  { audioCtx.close();       audioCtx = null  }
+      if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null }
+      if (closeWs && ws && ws.readyState === WebSocket.OPEN) {
+        ws.close()
+        ws = null
+      }
+      recording = false
+      micBtn.classList.remove('recording')
+      micBtn.title = 'Pornește înregistrarea'
+      btnLabel.textContent = 'Apasă pentru a înregistra'
+      interimBox.textContent = 'În așteptare...'
+      interimBox.classList.remove('active')
+      if (!closeWs) setStatus('', 'Deconectat')
+    }
+
+    micBtn.addEventListener('click', () => {
+      if (recording) {
+        stopRecording(true)
+        setStatus('', 'Deconectat')
+      } else {
+        startRecording()
+      }
+    })
+
+    clearBtn.addEventListener('click', () => {
+      historyBox.innerHTML = '<span id="empty-msg">Istoricul transcrierii va apărea aici.</span>'
+    })
+  </script>
+</body>
+</html>

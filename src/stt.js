@@ -19,7 +19,8 @@ export async function createSTTConnection(opts = {}) {
     endpointing: 300,
     punctuate: true,
     vad_events: true,
-    encoding: 'opus',
+    encoding: 'linear16',
+    sample_rate: 16000,
     ...opts,
   })
 
@@ -29,9 +30,6 @@ export async function createSTTConnection(opts = {}) {
     conn.handleError = reject
     conn.connect()
   })
-
-  conn.handleError = (err) => console.error('[STT] Error:', err)
-  conn.handleClose = ()    => console.log('[STT] Connection closed')
 
   console.log('[STT] Ready')
   return conn
