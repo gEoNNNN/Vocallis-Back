@@ -266,11 +266,13 @@
     const chat          = document.getElementById('chat')
     const clearBtn      = document.getElementById('clear-btn')
 
-    let ws        = null
-    let audioCtx  = null
-    let processor = null
-    let micStream = null
-    let recording = false
+    let ws          = null
+    let audioCtx    = null
+    let processor   = null
+    let micStream   = null
+    let recording   = false
+    let ttsPlaying  = false
+    let ttsBuffer   = ''
 
     let assistantBubble    = null
     let assistantTextNode  = null
@@ -328,11 +330,10 @@
       removeEmptyState()
       const row = document.createElement('div')
       row.className = 'bubble-row assistant'
-      row.id = 'streaming-bubble'
-      row.innerHTML = `<div class="bubble"><div class="sender">Bot · ${ts()}</div><span id="stream-text"></span><span class="cursor"></span></div>`
+      row.innerHTML = `<div class="bubble"><div class="sender">Vocallis · ${ts()}</div><span class="stream-text"></span><span class="cursor"></span></div>`
       chat.appendChild(row)
       assistantBubble   = row
-      assistantTextNode = document.getElementById('stream-text')
+      assistantTextNode = row.querySelector('.stream-text')
       chat.scrollTop    = chat.scrollHeight
     }
 
@@ -357,6 +358,31 @@
       interimTicker.className   = text ? 'active' : ''
     }
 
+    // ── TTS ──────────────────────────────────────────────────────────────────
+
+    async function speakText(text) {
+      if (!text.trim()) return
+      ttsPlaying = true
+      try {
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            voice: 'nova',
+            instructions: 'You are speaking Romanian with a warm, natural Moldovan accent. Your tone is friendly, calm and conversational — like a helpful colleague. Speak at a natural, unhurried Romanian pace. Pronounce Romanian words correctly, with soft intonation typical of the Republic of Moldova. Use natural speech rhythm, with gentle emphasis on key words.',
+          }),
+        })
+        if (!res.ok) { ttsPlaying = false; return }
+        const blob = await res.blob()
+        const url  = URL.createObjectURL(blob)
+        const audio = new Audio(url)
+        audio.play()
+        audio.onended = () => { URL.revokeObjectURL(url); ttsPlaying = false }
+        audio.onerror = () => { URL.revokeObjectURL(url); ttsPlaying = false }
+      } catch { ttsPlaying = false }
+    }
+
     // ── Audio pipeline ────────────────────────────────────────────────────────
 
     function startPCM(stream) {
@@ -366,7 +392,7 @@
       src.connect(processor)
       processor.connect(audioCtx.destination)
       processor.onaudioprocess = (e) => {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return
+        if (!ws || ws.readyState !== WebSocket.OPEN || ttsPlaying) return
         const f32 = e.inputBuffer.getChannelData(0)
         const i16 = new Int16Array(f32.length)
         for (let i = 0; i < f32.length; i++) {
@@ -420,13 +446,16 @@
           addThinking()
 
         } else if (msg.type === 'assistant_chunk') {
-          if (!assistantTextNode) startAssistantBubble()
+          if (!assistantTextNode) { startAssistantBubble(); ttsBuffer = '' }
+          ttsBuffer += msg.content
           appendAssistantChunk(msg.content)
 
         } else if (msg.type === 'assistant_end') {
           finalizeAssistantBubble()
           setStatus('listening', 'Ascultă...')
           micBtn.disabled = false
+          speakText(ttsBuffer)
+          ttsBuffer = ''
 
         } else if (msg.type === 'error') {
           finalizeAssistantBubble()

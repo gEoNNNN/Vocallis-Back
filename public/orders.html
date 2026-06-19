@@ -292,11 +292,12 @@
     const chat          = document.getElementById('chat')
     const clearBtn      = document.getElementById('clear-btn')
 
-    let ws        = null
-    let audioCtx  = null
-    let processor = null
-    let micStream = null
-    let recording = false
+    let ws         = null
+    let audioCtx   = null
+    let processor  = null
+    let micStream  = null
+    let recording  = false
+    let ttsPlaying = false
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -368,6 +369,31 @@
       interimTicker.className   = text ? 'active' : ''
     }
 
+    // ── TTS ──────────────────────────────────────────────────────────────────
+
+    async function speakText(text) {
+      if (!text.trim()) return
+      ttsPlaying = true
+      try {
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            voice: 'onyx',
+            instructions: 'You are speaking Romanian in a clear, professional and trustworthy tone. Speak at a measured, confident pace suitable for a business context. Pronounce Romanian words accurately. Sound warm but authoritative, like a knowledgeable sales consultant. Keep intonation natural and pleasant.',
+          }),
+        })
+        if (!res.ok) { ttsPlaying = false; return }
+        const blob = await res.blob()
+        const url  = URL.createObjectURL(blob)
+        const audio = new Audio(url)
+        audio.play()
+        audio.onended = () => { URL.revokeObjectURL(url); ttsPlaying = false }
+        audio.onerror = () => { URL.revokeObjectURL(url); ttsPlaying = false }
+      } catch { ttsPlaying = false }
+    }
+
     // ── Audio pipeline ────────────────────────────────────────────────────────
 
     function startPCM(stream) {
@@ -377,7 +403,7 @@
       src.connect(processor)
       processor.connect(audioCtx.destination)
       processor.onaudioprocess = (e) => {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return
+        if (!ws || ws.readyState !== WebSocket.OPEN || ttsPlaying) return
         const f32 = e.inputBuffer.getChannelData(0)
         const i16 = new Int16Array(f32.length)
         for (let i = 0; i < f32.length; i++) {
@@ -435,6 +461,7 @@
           addBubble('assistant', msg.text)
           setStatus('listening', 'Ascultă...')
           micBtn.disabled = false
+          speakText(msg.text)
 
         } else if (msg.type === 'order_confirmed') {
           addOrderCard(msg.order)
