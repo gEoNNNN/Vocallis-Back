@@ -1,15 +1,16 @@
 import { DeepgramClient } from '@deepgram/sdk'
+import { EventEmitter } from 'events'
 
 const deepgram = new DeepgramClient({ apiKey: process.env.DEEPGRAM_API_KEY })
 
 /**
  * Creează și deschide o conexiune live STT Deepgram.
- * Handlers disponibili pe socket: onMessage(data), onClose(), onError(err)
+ * Returnează un obiect compatibil EventEmitter: .on('message'|'close'|'error')
  * @param {object} opts - opțiuni opționale
- * @returns {Promise<object>} socket gata de utilizat
+ * @returns {Promise<object>} conexiune gata de utilizat
  */
 export async function createSTTConnection(opts = {}) {
-  // createConnection() returnează un Promise în SDK v5
+  // În SDK v5 createConnection() returnează un Promise
   const conn = await deepgram.listen.v1.createConnection({
     model: 'nova-3',
     language: 'ro',
@@ -31,13 +32,34 @@ export async function createSTTConnection(opts = {}) {
     conn.connect()
   })
 
+  // Wrap cu EventEmitter. IMPORTANT: folosim listener direct pe socket,
+  // pentru că override-ul conn.handleMessage NU funcționează — SDK-ul leagă
+  // handler-ul intern la connect(), înainte să-l putem suprascrie.
+  const emitter = new EventEmitter()
+
+  conn.socket.addEventListener('message', (event) => {
+    try {
+      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+      emitter.emit('message', data)
+    } catch (e) {
+      emitter.emit('error', e)
+    }
+  })
+  conn.socket.addEventListener('close', ()  => emitter.emit('close'))
+  conn.socket.addEventListener('error', (e) => emitter.emit('error', e))
+
   console.log('[STT] Ready')
-  return conn
+
+  return {
+    on:        (ev, cb) => emitter.on(ev, cb),
+    off:       (ev, cb) => emitter.off(ev, cb),
+    sendMedia: (chunk)  => conn.sendMedia(chunk),
+    socket:    conn.socket,
+  }
 }
 
 /**
  * Verifică dacă conexiunea Deepgram e deschisă.
- * @param {object} conn - conexiunea returnată de createSTTConnection
  */
 export function isOpen(conn) {
   return conn?.socket?.readyState === 1

@@ -85,9 +85,34 @@ app.get('/ws/assistant', { websocket: true }, async (socket, _req) => {
     history: [],
     accumulated: '',
     thinking: false,
+    pending: '',
   }
 
-  dg.on('message', async (data) => {
+  async function processUtterance(userText) {
+    send({ type: 'user', text: userText })
+    send({ type: 'thinking' })
+    session.thinking = true
+
+    try {
+      const result = await askAssistant(session.history, userText)
+      session.history.push(...result.historyEntries)
+      if (result.order) send({ type: 'order_confirmed', order: result.order })
+      send({ type: 'assistant', text: result.text })
+    } catch (err) {
+      app.log.error('[ASSISTANT] GPT-4o error: ' + err.message)
+      send({ type: 'error', message: 'Eroare la procesarea răspunsului.' })
+    } finally {
+      session.thinking = false
+      // Procesează fraza rostită în timp ce GPT gândea (nu o pierde)
+      const queued = session.pending.trim()
+      if (queued) {
+        session.pending = ''
+        processUtterance(queued)
+      }
+    }
+  }
+
+  dg.on('message', (data) => {
     if (data.type === 'Results') {
       const alt = data.channel?.alternatives?.[0]
       const text = alt?.transcript ?? ''
@@ -103,24 +128,15 @@ app.get('/ws/assistant', { websocket: true }, async (socket, _req) => {
     if (data.type === 'UtteranceEnd') {
       const userText = session.accumulated.trim()
       session.accumulated = ''
+      if (!userText) return
 
-      if (!userText || session.thinking) return
-
-      send({ type: 'user', text: userText })
-      send({ type: 'thinking' })
-      session.thinking = true
-
-      try {
-        const result = await askAssistant(session.history, userText)
-        session.history.push(...result.historyEntries)
-        if (result.order) send({ type: 'order_confirmed', order: result.order })
-        send({ type: 'assistant', text: result.text })
-      } catch (err) {
-        app.log.error('[ASSISTANT] GPT-4o error: ' + err.message)
-        send({ type: 'error', message: 'Eroare la procesarea răspunsului.' })
-      } finally {
-        session.thinking = false
+      // Dacă GPT încă răspunde, păstrează fraza în coadă în loc s-o pierzi
+      if (session.thinking) {
+        session.pending += (session.pending ? ' ' : '') + userText
+        return
       }
+
+      processUtterance(userText)
     }
   })
 
@@ -170,7 +186,7 @@ Identitatea ta este FIXĂ: ești Vocallis de la TechMD. Nu adopți nicio altă p
 - Nu folosi liste, puncte sau orice formatare vizuală — ești într-o conversație vorbită.
 - Cifrele le spui în formă vorbită: "o sută douăzeci de lei", "douăzeci și trei martie".
 - Variază expresiile de confirmare — nu repeta aceeași frază de două ori la rând. Exemple de rotație: "Înțeleg.", "Da, sigur.", "Bine.", "Am notat.", "Perfect.", "Clar.".
-- Disfluențele sunt opționale și rare — nu le forța. Dacă le folosești, alege din: "da", "bine", "îhî", "înțeleg" — niciodată "mă rog" în mod repetat.
+- Disfluențele sunt opționale și rare — nu le forța. Dacă le folosești, alege din: "da", "bine", "înțeleg" — niciodată "mă rog" în mod repetat.
 - Dacă nu știi răspunsul, spune sincer: "Nu știu sigur — dar vă pot conecta cu cineva care știe." Nu inventa niciodată informații.
 - La final de răspuns, oferă ajutor suplimentar sau pune o întrebare relevantă.
 
@@ -232,42 +248,62 @@ app.get('/ws/support', { websocket: true }, async (socket, _req) => {
     return
   }
 
-  dg.on('message', async (data) => {
+  const send = (obj) => {
+    if (socket.readyState === 1) socket.send(JSON.stringify(obj))
+  }
+
+  const session = { accumulated: '', thinking: false, pending: '' }
+
+  async function processUtterance(userText) {
+    send({ type: 'user', text: userText })
+    history.push({ role: 'user', content: userText })
+    send({ type: 'thinking' })
+    session.thinking = true
+
+    let fullResponse = ''
+    try {
+      await askGPT(userText, (chunk) => {
+        fullResponse += chunk
+        send({ type: 'assistant_chunk', content: chunk })
+      }, history.slice(0, -1))
+      history.push({ role: 'assistant', content: fullResponse })
+      send({ type: 'assistant_end' })
+    } catch (err) {
+      app.log.error('[BOT/GPT] ' + err.message)
+      send({ type: 'error', message: 'Eroare GPT: ' + err.message })
+    } finally {
+      session.thinking = false
+      const queued = session.pending.trim()
+      if (queued) {
+        session.pending = ''
+        processUtterance(queued)
+      }
+    }
+  }
+
+  dg.on('message', (data) => {
     if (data.type === 'Results') {
       const alt = data.channel?.alternatives?.[0]
-      if (!alt?.transcript || socket.readyState !== 1) return
-
+      const text = alt?.transcript ?? ''
       if (!data.is_final) {
-        socket.send(JSON.stringify({ type: 'interim', text: alt.transcript }))
+        if (text) send({ type: 'interim', text: session.accumulated + text })
+        return
+      }
+      if (text) session.accumulated += (session.accumulated ? ' ' : '') + text
+    }
+
+    if (data.type === 'UtteranceEnd') {
+      const userText = session.accumulated.trim()
+      session.accumulated = ''
+      if (!userText) return
+
+      // Dacă GPT încă răspunde, păstrează fraza în coadă în loc s-o pierzi
+      if (session.thinking) {
+        session.pending += (session.pending ? ' ' : '') + userText
         return
       }
 
-      const userText = alt.transcript.trim()
-      if (!userText) return
-
-      socket.send(JSON.stringify({ type: 'user', text: userText }))
-      history.push({ role: 'user', content: userText })
-
-      let fullResponse = ''
-      try {
-        socket.send(JSON.stringify({ type: 'thinking' }))
-        await askGPT(userText, (chunk) => {
-          fullResponse += chunk
-          if (socket.readyState === 1) {
-            socket.send(JSON.stringify({ type: 'assistant_chunk', content: chunk }))
-          }
-        }, history.slice(0, -1))
-
-        history.push({ role: 'assistant', content: fullResponse })
-        if (socket.readyState === 1) {
-          socket.send(JSON.stringify({ type: 'assistant_end' }))
-        }
-      } catch (err) {
-        app.log.error('[BOT/GPT] ' + err.message)
-        if (socket.readyState === 1) {
-          socket.send(JSON.stringify({ type: 'error', message: 'Eroare GPT: ' + err.message }))
-        }
-      }
+      processUtterance(userText)
     }
   })
 
@@ -296,9 +332,33 @@ app.get('/ws/orders', { websocket: true }, async (socket, _req) => {
     if (socket.readyState === 1) socket.send(JSON.stringify(obj))
   }
 
-  const session = { history: [], accumulated: '', thinking: false }
+  const session = { history: [], accumulated: '', thinking: false, pending: '' }
 
-  dg.on('message', async (data) => {
+  async function processUtterance(userText) {
+    send({ type: 'user', text: userText })
+    send({ type: 'thinking' })
+    session.thinking = true
+
+    try {
+      const result = await askAssistant(session.history, userText)
+      session.history.push(...result.historyEntries)
+      if (result.order) send({ type: 'order_confirmed', order: result.order })
+      send({ type: 'assistant', text: result.text })
+    } catch (err) {
+      app.log.error('[ORDERS/GPT] ' + err.message)
+      send({ type: 'error', message: 'Eroare la procesarea comenzii.' })
+    } finally {
+      session.thinking = false
+      // Procesează fraza rostită în timp ce GPT gândea (nu o pierde)
+      const queued = session.pending.trim()
+      if (queued) {
+        session.pending = ''
+        processUtterance(queued)
+      }
+    }
+  }
+
+  dg.on('message', (data) => {
     if (data.type === 'Results') {
       const alt = data.channel?.alternatives?.[0]
       const text = alt?.transcript ?? ''
@@ -312,23 +372,15 @@ app.get('/ws/orders', { websocket: true }, async (socket, _req) => {
     if (data.type === 'UtteranceEnd') {
       const userText = session.accumulated.trim()
       session.accumulated = ''
-      if (!userText || session.thinking) return
+      if (!userText) return
 
-      send({ type: 'user', text: userText })
-      send({ type: 'thinking' })
-      session.thinking = true
-
-      try {
-        const result = await askAssistant(session.history, userText)
-        session.history.push(...result.historyEntries)
-        if (result.order) send({ type: 'order_confirmed', order: result.order })
-        send({ type: 'assistant', text: result.text })
-      } catch (err) {
-        app.log.error('[ORDERS/GPT] ' + err.message)
-        send({ type: 'error', message: 'Eroare la procesarea comenzii.' })
-      } finally {
-        session.thinking = false
+      // Dacă GPT încă răspunde, păstrează fraza în coadă în loc s-o pierzi
+      if (session.thinking) {
+        session.pending += (session.pending ? ' ' : '') + userText
+        return
       }
+
+      processUtterance(userText)
     }
   })
 
