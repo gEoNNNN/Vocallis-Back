@@ -10,7 +10,7 @@ function generateOrderId() {
   const d = new Date()
   const date = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
   orderCounter += 1
-  return `ORD-${date}-${String(orderCounter).padStart(3, '0')}`
+  return `CVB-${date}-${String(orderCounter).padStart(3, '0')}`
 }
 
 // ── Tool definitions ───────────────────────────────────────────────────────────
@@ -19,26 +19,29 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'place_order',
-      description: 'Plasează o comandă pentru un produs TechMD SRL. Apelează această funcție DOAR când ai colectat toate cele trei câmpuri obligatorii: produsul, planul și numele complet al clientului.',
+      description: 'Plasează o comandă la Casa Verde Bistro. Apelează DOAR când ai colectat preparatele dorite, tipul comenzii și numele clientului.',
       parameters: {
         type: 'object',
         properties: {
-          product: {
+          items: {
             type: 'string',
-            enum: ['TechMD CRM', 'TechMD Invoicer', 'TechMD HRM'],
-            description: 'Produsul comandat',
+            description: 'Lista preparatelor și băuturilor comandate (ex: "Burger Casa Verde + Limonadă naturală")',
           },
-          plan: {
+          order_type: {
             type: 'string',
-            enum: ['Start', 'Business', 'Enterprise'],
-            description: 'Planul ales',
+            enum: ['local', 'livrare'],
+            description: 'Tipul comenzii: local (la masă în restaurant) sau livrare la domiciliu',
+          },
+          address: {
+            type: 'string',
+            description: 'Adresa de livrare (obligatorie pentru livrare, “N/A” pentru local)',
           },
           customer_name: {
             type: 'string',
-            description: 'Numele complet al clientului',
+            description: 'Numele clientului',
           },
         },
-        required: ['product', 'plan', 'customer_name'],
+        required: ['items', 'order_type', 'address', 'customer_name'],
       },
     },
   },
@@ -48,8 +51,9 @@ const TOOLS = [
 function processOrder(args) {
   const order = {
     id: generateOrderId(),
-    product: args.product,
-    plan: args.plan,
+    items: args.items,
+    order_type: args.order_type,
+    address: args.address ?? 'N/A',
     customer_name: args.customer_name,
     timestamp: new Date().toISOString(),
   }
@@ -59,24 +63,24 @@ function processOrder(args) {
 
 // ── System prompt ──────────────────────────────────────────────────────────────
 function buildSystemPrompt() {
-  return `Ești un asistent virtual pentru compania TechMD SRL. Răspunzi EXCLUSIV pe baza informațiilor din baza de cunoștințe de mai jos.
+  return `Ești un asistent vocal pentru restaurantul Casa Verde Bistro. Preiei comenzi de mâncare și băutură prin conversație vocală.
 
-REGULI STRICTE:
-1. Răspunde DOAR la întrebări despre TechMD SRL și produsele/serviciile sale.
-2. Dacă utilizatorul întreabă ceva care NU se regăsește în baza de cunoștințe, răspunde exact: "Îmi pare rău, pot răspunde doar la întrebări despre TechMD SRL."
-3. Nu inventa informații care nu sunt în baza de cunoștințe.
-4. Răspunde ÎNTOTDEAUNA în limba română.
-5. Textul primit poate conține erori de transcriere cauzate de accentul regional (Republica Moldova). Interpretează intenția utilizatorului chiar dacă unele cuvinte sunt transcrise incorect.
-6. Fii concis și direct. Răspunsurile să fie practice și utile.
+REGULI:
+1. Răspunde EXCLUSIV la comenzi și întrebări despre meniu și restaurant.
+2. Nu inventa preparate care nu sunt în meniu.
+3. Răspunde ÎNTOTDEAUNA în română.
+4. Textul poate conține erori de transcriere — interpretează intenția.
+5. Fii concis și prietenos. Maxim două propoziții per răspuns.
 
-COMENZI:
-Dacă utilizatorul dorește să plaseze o comandă (expresii ca "vreau să comand", "aș dori să cumpăr", "vreau să mă abonez", "cumpăr", "comandă" etc.), colectează prin întrebări succinte:
-1. Produsul dorit (TechMD CRM, TechMD Invoicer sau TechMD HRM)
-2. Planul ales (Start, Business sau Enterprise)
-3. Numele complet al clientului
-Când ai toate trei informațiile confirmate, apelează funcția place_order. Nu apela funcția înainte de a avea toate câmpurile obligatorii. Dacă clientul corectează o informație anterior furnizată, folosește valoarea corectată.
+FLUX COMANDĂ:
+Colectează prin întrebări succinte:
+1. Ce preparate și băuturi doresc (din meniu)
+2. Tipul comenzii: local (la masă) sau livrare
+3. Dacă livrare: adresa de livrare completă
+4. Numele clientului
+Când ai toate câmpurile confirmate, apelează place_order. Nu apela funcția înainte.
+Pentru comenzi locale, folosește “N/A” la câmpul address.
 
-BAZA DE CUNOȘTINȚE:
 ${KNOWLEDGE_BASE}`
 }
 

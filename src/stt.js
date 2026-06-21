@@ -45,7 +45,17 @@ export async function createSTTConnection(opts = {}) {
       emitter.emit('error', e)
     }
   })
-  conn.socket.addEventListener('close', ()  => emitter.emit('close'))
+  // Keepalive la fiecare 8s — previne timeout-ul Deepgram când microfonul e mut (ex: TTS activ)
+  const keepAliveTimer = setInterval(() => {
+    if (conn.socket.readyState === 1) {
+      conn.socket.send(JSON.stringify({ type: 'KeepAlive' }))
+    }
+  }, 8000)
+
+  conn.socket.addEventListener('close', () => {
+    clearInterval(keepAliveTimer)
+    emitter.emit('close')
+  })
   conn.socket.addEventListener('error', (e) => emitter.emit('error', e))
 
   console.log('[STT] Ready')
