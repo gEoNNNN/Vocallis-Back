@@ -1,14 +1,16 @@
-const VOICE_ID = 'EXAVITQu4vr4xnSDxMaL' // Bella — voce caldă, sună natural în română
-const MODEL_ID = 'eleven_flash_v2_5'
+const VOICE_ID = 'EXAVITQu4vr4xnSDxMaL' // Bella — voce caldă, funcționează în RO + RU
 
 /**
- * Converts text to speech using ElevenLabs eleven_flash_v2_5.
- * @param {string} text - Text to synthesize (max 5000 chars)
+ * Converts text to speech using ElevenLabs.
+ * @param {string} text  - Text to synthesize (max 5000 chars)
+ * @param {string} lang  - 'ro' (default) | 'ru'
  * @returns {Promise<Buffer>} MP3 audio buffer
  */
-export async function generateSpeech(text) {
+export async function generateSpeech(text, lang = 'ro') {
   const apiKey = process.env.ELEVENLABS_API_KEY
   if (!apiKey) throw new Error('ELEVENLABS_API_KEY not set in environment')
+
+  const modelId = lang === 'ru' ? 'eleven_multilingual_v2' : 'eleven_flash_v2_5'
 
   const res = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
@@ -21,7 +23,7 @@ export async function generateSpeech(text) {
       },
       body: JSON.stringify({
         text,
-        model_id: MODEL_ID,
+        model_id: modelId,
         voice_settings: {
           stability:         0.65,
           similarity_boost:  0.85,

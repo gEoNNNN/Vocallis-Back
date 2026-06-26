@@ -157,12 +157,12 @@ app.get('/ws/assistant', { websocket: true }, async (socket, _req) => {
 // ── TTS route ───────────────────────────────────────────────────────────────
 
 app.post('/api/tts', async (req, reply) => {
-  const { text, voice, instructions } = req.body
+  const { text, lang } = req.body
   if (!text || typeof text !== 'string') {
     return reply.code(400).send({ error: 'Missing text' })
   }
   try {
-    const audio = await generateSpeech(text.slice(0, 5000))
+    const audio = await generateSpeech(text.slice(0, 5000), lang ?? 'ro')
     reply.type('audio/mpeg').send(audio)
   } catch (err) {
     app.log.error('[TTS] ' + err.message)
@@ -172,69 +172,42 @@ app.post('/api/tts', async (req, reply) => {
 
 // ── Support bot route ────────────────────────────────────────────────────────
 
-const SUPPORT_SYSTEM_PROMPT = `
-Ești "Vocallis", asistentul vocal de informații al restaurantului Casa Verde Bistro.
+const SUPPORT_SYSTEM_PROMPT = {
+  ro: `Ești "Vocallis", asistentul vocal de informații al restaurantului Casa Verde Bistro.
 Răspunzi EXCLUSIV la întrebări despre meniu, locații, program și informații generale.
-Dacă cineva vrea o rezervare, spune: "Pentru rezervări vă rog să selectați opțiunea Programări."
-Dacă cineva vrea să comande, spune: "Pentru comenzi vă rog să selectați opțiunea Comenzi."
-
-REGULI:
-- Maxim două propoziții scurte per răspuns. O singură întrebare per răspuns.
-- Fără liste sau formatare vizuală — ești într-o conversație vorbită.
-- Nu inventa informații absente din context. La limbaj nepotrivit: "Vă rog respectuos."
-- Dacă clientul vorbește rusă, răspunzi imediat în rusă, natural.
-
-MENIU:
-Startere: Salată cu avocado și pui grill, Bruschete cu roșii și busuioc, Cremă de legume de sezon.
-Feluri principale: Paste Carbonara clasică, Burger "Casa Verde" cu vită, Piept de pui cu legume la grătar, Somon cu orez și lime.
-Deserturi: Cheesecake cu fructe de pădure, Lava cake cu ciocolată, Plăcintă de mere de casă.
-Băuturi: Limonadă naturală, Smoothie mango și banană, Cafea espresso / cappuccino.
-
-LOCAȚII: Str. Ștefan cel Mare 42 · Str. 31 August 1989 15 · MallDova Food Court — toate în Chișinău.
-PROGRAM: Luni–Vineri 09:00–22:00 · Sâmbătă–Duminică 10:00–23:00.
-`
-
-const BOOKINGS_SYSTEM_PROMPT = `
-Ești "Vocallis", asistentul vocal de rezervări al restaurantului Casa Verde Bistro.
-Scopul tău este să faci rezervări de mese. Colectezi în ordine:
-1. Data dorită
-2. Ora dorită
-3. Numărul de persoane
-4. Numele pe care se face rezervarea
-
-Când ai toate patru confirmate, spune: "Am rezervat o masă pentru [X] persoane pe [data] la ora [ora], pe numele [Nume]. Vă așteptăm cu drag!"
-
-REGULI:
-- Maxim două propoziții per răspuns. O singură întrebare per răspuns.
-- Orele în formă vorbită: "ora opt seara", "ora douăsprezece și jumătate".
-- Datele în formă vorbită: "douăzeci și trei iunie", "mâine", "poimâine".
-- Verifică că ora e în program: Luni-Vineri 09:00-22:00, Sâmbătă-Duminică 10:00-23:00. Dacă nu, sugerează o oră disponibilă.
-- Dacă clientul vorbește rusă, răspunzi imediat în rusă.
-- Nu vorbi despre altceva în afară de rezervare și informații de bază despre restaurant.
-
+Dacă cineva vrea o rezervare, spune: "Pentru rezervări selectați opțiunea Programări."
+Dacă cineva vrea să comande, spune: "Pentru comenzi selectați opțiunea Comenzi."
+Maxim două propoziții. Fără liste. Nu inventa informații.
+MENIU: Salată avocado-pui, Bruschete, Cremă de legume | Paste Carbonara, Burger Casa Verde, Pui grill, Somon lime | Cheesecake, Lava cake, Plăcintă mere | Limonadă, Smoothie mango, Espresso/Cappuccino.
 LOCAȚII: Str. Ștefan cel Mare 42 · Str. 31 August 1989 15 · MallDova Food Court — Chișinău.
-PROGRAM: Luni–Vineri 09:00–22:00 · Sâmbătă–Duminică 10:00–23:00.
+PROGRAM: Luni–Vineri 09:00–22:00 · Sâmbătă–Duminică 10:00–23:00.`,
+  ru: `Ты «Вокаллис», голосовой информационный ассистент Casa Verde Bistro. Отвечай всегда на русском.
+Отвечай ТОЛЬКО на вопросы о меню, адресах, графике работы.
+Если хотят бронь: «Для бронирования выберите опцию Программари.» Если заказ: «Для заказа выберите Команзи.»
+Максимум два предложения. Без списков. Не придумывай информацию.
+МЕНЮ: Салат авокадо-курица, Брускетты, Крем-суп | Паста Карбонара, Бургер Casa Verde, Курица гриль, Лосось с лаймом | Чизкейк, Лава-кейк, Яблочный пирог | Лимонад, Смузи манго, Эспрессо/Капучино.
+АДРЕСА: ул. Штефан чел Маре 42 · ул. 31 Августа 1989 15 · MallDova Food Court — Кишинёв.
+ГРАФИК: Пн–Пт 09:00–22:00 · Сб–Вс 10:00–23:00.`,
+}
 
-EXEMPLE:
-Client: "Aș vrea o masă pentru mâine seară."
-Vocallis: "Cu plăcere! La ce oră doriți să veniți?"
+const BOOKINGS_SYSTEM_PROMPT = {
+  ro: `Ești "Vocallis", asistentul vocal de rezervări al restaurantului Casa Verde Bistro.
+Colectezi în ordine: 1. Data 2. Ora 3. Nr. persoane 4. Numele rezervării.
+Când ai toate patru confirmate, spune: "Am rezervat o masă pentru [X] persoane pe [data] la ora [ora], pe numele [Nume]. Vă așteptăm!"
+Maxim două propoziții. O întrebare per răspuns. Orele în formă vorbită. Program: Luni–Vineri 09:00–22:00, Sâmbătă–Duminică 10:00–23:00.`,
+  ru: `Ты «Вокаллис», ассистент по бронированию Casa Verde Bistro. Отвечай всегда на русском.
+Собирай по порядку: 1. Дата 2. Время 3. Кол-во гостей 4. Имя для бронирования.
+Когда все подтверждено: «Столик забронирован на [X] человек [дата] в [время] на имя [Имя]. Ждём вас!»
+Максимум два предложения. Один вопрос за раз. График: Пн–Пт 09:00–22:00, Сб–Вс 10:00–23:00.`,
+}
 
-Client: "La ora opt."
-Vocallis: "Perfect, și pentru câte persoane fac rezervarea?"
-
-Client: "Trei persoane."
-Vocallis: "Bine! Pe ce nume fac rezervarea?"
-
-Client: "Popescu."
-Vocallis: "Am rezervat o masă pentru trei persoane mâine la ora opt seara, pe numele Popescu. Vă așteptăm cu drag!"
-`
-
-app.get('/ws/support', { websocket: true }, async (socket, _req) => {
-  const history = [{ role: 'system', content: SUPPORT_SYSTEM_PROMPT }]
+app.get('/ws/support', { websocket: true }, async (socket, req) => {
+  const lang = req.query.lang === 'ru' ? 'ru' : 'ro'
+  const history = [{ role: 'system', content: SUPPORT_SYSTEM_PROMPT[lang] }]
   let dg
 
   try {
-    dg = await createSTTConnection()
+    dg = await createSTTConnection({ language: lang })
   } catch (err) {
     app.log.error('[BOT/STT] Failed to connect: ' + err.message)
     socket.close(1011, 'Deepgram connection failed')
@@ -245,7 +218,10 @@ app.get('/ws/support', { websocket: true }, async (socket, _req) => {
     if (socket.readyState === 1) socket.send(JSON.stringify(obj))
   }
 
-  setTimeout(() => send({ type: 'assistant', text: 'Bună ziua! Mă numesc Arina de la Casa Verde Bistro. Cu ce informații vă pot ajuta?' }), 500)
+  const greeting = lang === 'ru'
+    ? 'Добрый день! Меня зовут Арина, я из Casa Verde Bistro. Чем могу помочь?'
+    : 'Bună ziua! Mă numesc Arina de la Casa Verde Bistro. Cu ce informații vă pot ajuta?'
+  setTimeout(() => send({ type: 'assistant', text: greeting }), 500)
 
   const session = { accumulated: '', thinking: false, pending: '' }
 
@@ -312,12 +288,13 @@ app.get('/ws/support', { websocket: true }, async (socket, _req) => {
 
 // ── Bookings bot route ───────────────────────────────────────────────────────
 
-app.get('/ws/bookings', { websocket: true }, async (socket, _req) => {
-  const history = [{ role: 'system', content: BOOKINGS_SYSTEM_PROMPT }]
+app.get('/ws/bookings', { websocket: true }, async (socket, req) => {
+  const lang = req.query.lang === 'ru' ? 'ru' : 'ro'
+  const history = [{ role: 'system', content: BOOKINGS_SYSTEM_PROMPT[lang] }]
   let dg
 
   try {
-    dg = await createSTTConnection()
+    dg = await createSTTConnection({ language: lang })
   } catch (err) {
     app.log.error('[BOOKINGS/STT] Failed to connect: ' + err.message)
     socket.close(1011, 'Deepgram connection failed')
@@ -328,7 +305,10 @@ app.get('/ws/bookings', { websocket: true }, async (socket, _req) => {
     if (socket.readyState === 1) socket.send(JSON.stringify(obj))
   }
 
-  setTimeout(() => send({ type: 'assistant', text: 'Bună ziua! Mă numesc Arina de la Casa Verde Bistro. Doriți să faceți o rezervare?' }), 500)
+  const greeting = lang === 'ru'
+    ? 'Добрый день! Меня зовут Арина из Casa Verde Bistro. Хотите забронировать столик?'
+    : 'Bună ziua! Mă numesc Arina de la Casa Verde Bistro. Doriți să faceți o rezervare?'
+  setTimeout(() => send({ type: 'assistant', text: greeting }), 500)
 
   const session = { accumulated: '', thinking: false, pending: '' }
 
@@ -392,11 +372,12 @@ app.get('/ws/bookings', { websocket: true }, async (socket, _req) => {
 
 // ── Orders bot route ─────────────────────────────────────────────────────────
 
-app.get('/ws/orders', { websocket: true }, async (socket, _req) => {
+app.get('/ws/orders', { websocket: true }, async (socket, req) => {
+  const lang = req.query.lang === 'ru' ? 'ru' : 'ro'
   let dg
 
   try {
-    dg = await createSTTConnection()
+    dg = await createSTTConnection({ language: lang })
   } catch (err) {
     app.log.error('[ORDERS/STT] Failed to connect: ' + err.message)
     socket.close(1011, 'Deepgram connection failed')
@@ -407,7 +388,10 @@ app.get('/ws/orders', { websocket: true }, async (socket, _req) => {
     if (socket.readyState === 1) socket.send(JSON.stringify(obj))
   }
 
-  setTimeout(() => send({ type: 'assistant', text: 'Bună ziua! Sunt Arina de la Casa Verde Bistro. Ce doriți să comandați astăzi?' }), 500)
+  const greeting = lang === 'ru'
+    ? 'Добрый день! Я Арина из Casa Verde Bistro. Что желаете заказать?'
+    : 'Bună ziua! Sunt Arina de la Casa Verde Bistro. Ce doriți să comandați astăzi?'
+  setTimeout(() => send({ type: 'assistant', text: greeting }), 500)
 
   const session = { history: [], accumulated: '', thinking: false, pending: '' }
 
@@ -417,7 +401,7 @@ app.get('/ws/orders', { websocket: true }, async (socket, _req) => {
     session.thinking = true
 
     try {
-      const result = await askAssistant(session.history, userText)
+      const result = await askAssistant(session.history, userText, lang)
       session.history.push(...result.historyEntries)
       if (result.order) send({ type: 'order_confirmed', order: result.order })
       send({ type: 'assistant', text: result.text })

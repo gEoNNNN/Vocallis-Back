@@ -62,7 +62,26 @@ function processOrder(args) {
 }
 
 // ── System prompt ──────────────────────────────────────────────────────────────
-function buildSystemPrompt() {
+function buildSystemPrompt(lang = 'ro') {
+  if (lang === 'ru') {
+    return `Ты голосовой ассистент ресторана Casa Verde Bistro. Принимаешь заказы на еду и напитки.
+
+ПРАВИЛА:
+1. Отвечай ТОЛЬКО на заказы и вопросы о меню.
+2. Не придумывай блюда, которых нет в меню.
+3. Отвечай ВСЕГДА на русском языке.
+4. Текст может содержать ошибки транскрипции — интерпретируй намерение.
+5. Будь лаконичен и дружелюбен. Максимум два предложения.
+
+ПОРЯДОК ЗАКАЗА:
+1. Какие блюда и напитки хотят (из меню)
+2. Тип заказа: на месте или доставка
+3. Если доставка: полный адрес доставки
+4. Имя клиента
+Когда все подтверждено — вызови place_order. Для заказов на месте используй "N/A" в поле address.
+
+${KNOWLEDGE_BASE}`
+  }
   return `Ești un asistent vocal pentru restaurantul Casa Verde Bistro. Preiei comenzi de mâncare și băutură prin conversație vocală.
 
 REGULI:
@@ -91,11 +110,11 @@ ${KNOWLEDGE_BASE}`
  * @param {string} userText - the new user message
  * @returns {Promise<{ text: string, order: object|null, historyEntries: Array }>}
  */
-export async function askAssistant(history, userText) {
+export async function askAssistant(history, userText, lang = 'ro') {
   const userMessage = { role: 'user', content: userText }
 
   const messages = [
-    { role: 'system', content: buildSystemPrompt() },
+    { role: 'system', content: buildSystemPrompt(lang) },
     ...history,
     userMessage,
   ]
