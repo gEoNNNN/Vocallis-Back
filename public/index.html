@@ -3,133 +3,606 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vocallis – Alege Asistentul</title>
+  <title>Vocallis – Asistent AI</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #0d0d11;
-      color: #e2e2ed;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       min-height: 100vh;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 24px;
+      background:
+        radial-gradient(ellipse at 15% 25%, rgba(110,200,190,0.55) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 75%, rgba(130,210,170,0.45) 0%, transparent 55%),
+        #ddf0eb;
     }
 
-    .logo { font-size: 1.4rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
-    .logo span { color: #6ee7b7; }
-    .logo small { display: block; font-weight: 400; font-size: 0.75rem; color: #333; margin-top: 2px; letter-spacing: 0; }
-
-    .tagline {
-      font-size: 0.9rem;
-      color: #2e2e44;
-      margin-top: 6px;
-    }
-
-    .cards {
-      display: flex;
-      gap: 20px;
-      margin-top: 40px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
+    /* ── Card ── */
     .card {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      width: 260px;
-      background: #111118;
-      border: 1px solid #1e1e2e;
-      border-radius: 20px;
-      padding: 28px 24px;
-      text-decoration: none;
-      color: inherit;
-      transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
-      cursor: pointer;
+      background: rgba(255,255,255,0.82);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-radius: 28px;
+      padding: 36px 32px 28px;
+      width: 100%;
+      max-width: 560px;
+      box-shadow: 0 8px 48px rgba(20,90,75,0.13), 0 1px 0 rgba(255,255,255,0.9) inset;
     }
-    .card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-    }
-    .card.support { border-color: #1e2e28; }
-    .card.support:hover { border-color: #34d399; box-shadow: 0 8px 32px rgba(52,211,153,0.1); }
-    .card.orders  { border-color: #1e2420; }
-    .card.orders:hover  { border-color: #4ade80; box-shadow: 0 8px 32px rgba(74,222,128,0.1); }
-
-    .card-icon {
-      font-size: 2.2rem;
-      margin-bottom: 16px;
-      width: 52px; height: 52px;
-      display: flex; align-items: center; justify-content: center;
-      border-radius: 14px;
-    }
-    .card.support .card-icon { background: #0d1f18; }
-    .card.orders  .card-icon { background: #0a1f10; }
 
     .card-title {
-      font-size: 1.05rem;
+      text-align: center;
+      font-size: 1.3rem;
       font-weight: 700;
-      color: #e2e2ed;
-      margin-bottom: 6px;
-    }
-    .card.support .card-title { color: #6ee7b7; }
-    .card.orders  .card-title { color: #4ade80; }
-
-    .card-desc {
-      font-size: 0.82rem;
-      color: #3a3a55;
-      line-height: 1.55;
+      color: #1a2e2a;
+      letter-spacing: -0.3px;
     }
 
-    .card-arrow {
-      margin-top: 20px;
-      font-size: 0.78rem;
+    .card-subtitle {
+      text-align: center;
+      font-size: 0.86rem;
+      color: #7a9e98;
+      margin-top: 5px;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 22px;
+    }
+
+    .tab-btn {
+      padding: 8px 20px;
+      border-radius: 999px;
+      border: 1.5px solid #c0dbd6;
+      background: #fff;
+      color: #4a8078;
+      font-size: 0.88rem;
       font-weight: 600;
-      opacity: 0.3;
-      transition: opacity 0.2s;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.18s;
+      white-space: nowrap;
     }
-    .card:hover .card-arrow { opacity: 1; }
-    .card.support .card-arrow { color: #6ee7b7; }
-    .card.orders  .card-arrow { color: #4ade80; }
+    .tab-btn:hover:not(.active):not(:disabled) {
+      border-color: #5ab8ac;
+      color: #2a6058;
+    }
+    .tab-btn.active {
+      background: #1e5250;
+      border-color: #1e5250;
+      color: #fff;
+    }
+    .tab-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
 
-    .footer {
-      margin-top: 48px;
-      font-size: 0.72rem;
-      color: #1e1e2e;
+    /* ── Call button ── */
+    #call-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      max-width: 260px;
+      margin: 22px auto 0;
+      padding: 14px 28px;
+      border-radius: 999px;
+      border: none;
+      background: #1e6458;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
+      box-shadow: 0 4px 22px rgba(30,100,88,0.38);
     }
+    #call-btn svg { flex-shrink: 0; }
+    #call-btn:hover:not(:disabled) {
+      background: #195545;
+      transform: scale(1.02);
+    }
+    #call-btn.active {
+      background: #b91c1c;
+      box-shadow: 0 4px 22px rgba(185,28,28,0.38);
+    }
+    #call-btn.active:hover { background: #991b1b; }
+    #call-btn:disabled { opacity: 0.45; cursor: default; transform: none !important; }
+
+    /* ── Status / interim row ── */
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 14px;
+      min-height: 20px;
+    }
+
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #c0d8d4;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .dot.listening { background: #34d399; animation: pulse 1.2s infinite; }
+    .dot.thinking  { background: #fbbf24; animation: pulse 1.2s infinite; }
+    .dot.error     { background: #f87171; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.3; transform: scale(1.6); }
+    }
+
+    #interim-text {
+      font-size: 0.82rem;
+      color: #9abdb8;
+      font-style: italic;
+    }
+    #interim-text.active { color: #1e9a80; }
+
+    /* ── Chat area ── */
+    #chat {
+      margin-top: 14px;
+      background: rgba(235,248,244,0.65);
+      border: 1px solid #c8e4de;
+      border-radius: 18px;
+      padding: 16px;
+      min-height: 160px;
+      max-height: 320px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      scroll-behavior: smooth;
+    }
+    #chat::-webkit-scrollbar { width: 4px; }
+    #chat::-webkit-scrollbar-track { background: transparent; }
+    #chat::-webkit-scrollbar-thumb { background: #b0d4ce; border-radius: 4px; }
+
+    .empty-msg {
+      color: #a8c8c2;
+      font-size: 0.88rem;
+      text-align: center;
+      margin: auto;
+      font-style: italic;
+    }
+
+    /* ── Bubbles ── */
+    .bubble-row { display: flex; animation: fade-up 0.2s ease; }
+    .bubble-row.user      { justify-content: flex-end; }
+    .bubble-row.assistant { justify-content: flex-start; }
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .bubble {
+      max-width: 78%;
+      padding: 9px 14px;
+      border-radius: 16px;
+      font-size: 0.9rem;
+      line-height: 1.56;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .bubble .sender {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      opacity: 0.48;
+      margin-bottom: 3px;
+    }
+    .bubble-row.user .bubble {
+      background: #1e6458;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .bubble-row.assistant .bubble {
+      background: #fff;
+      color: #1a2e2a;
+      border: 1px solid #c8e4de;
+      border-bottom-left-radius: 4px;
+    }
+    .bubble-row.error .bubble {
+      background: #fff5f5;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+      border-radius: 12px;
+    }
+
+    /* Streaming cursor */
+    .cursor {
+      display: inline-block;
+      width: 2px; height: 1em;
+      background: #1e9a80;
+      vertical-align: text-bottom;
+      margin-left: 2px;
+      animation: blink 0.75s steps(1) infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+    /* Thinking dots */
+    .thinking-dots span {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #34b89a;
+      margin: 0 2px;
+      animation: bounce 1.1s infinite ease-in-out;
+    }
+    .thinking-dots span:nth-child(2) { animation-delay: 0.18s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+      40%            { transform: translateY(-6px); opacity: 1; }
+    }
+
+    /* Order card */
+    .order-card {
+      align-self: center;
+      width: 100%;
+      background: #f0faf6;
+      border: 1px solid #9ed8c0;
+      border-radius: 14px;
+      padding: 12px 16px;
+      animation: fade-up 0.2s ease;
+    }
+    .order-card-header {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #1e7a5a;
+      margin-bottom: 8px;
+    }
+    .order-card-id {
+      margin-left: auto;
+      font-size: 0.68rem;
+      color: #6ab89e;
+      letter-spacing: 0.5px;
+    }
+    .order-card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-size: 0.84rem;
+      padding: 4px 0;
+      border-bottom: 1px solid #c5e8d8;
+      color: #2a5a48;
+      gap: 12px;
+    }
+    .order-card-row:last-child { border-bottom: none; }
+    .order-card-row .label { color: #7ab5a0; font-size: 0.74rem; flex-shrink: 0; }
+    .order-card-row .value { text-align: right; }
   </style>
 </head>
 <body>
 
-  <div class="logo">
-    Vocallis <span>AI</span>
-    <small>TechMD SRL · Platformă Vocală</small>
+  <div class="card">
+    <h1 class="card-title">Vorbește cu Agentul AI</h1>
+    <p class="card-subtitle">Selectează tipul de agent și apasă butonul pentru a începe.</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-mode="support">General / Suport</button>
+      <button class="tab-btn" data-mode="bookings">Programări</button>
+      <button class="tab-btn" data-mode="orders">Comenzi</button>
+    </div>
+
+    <button id="call-btn">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/>
+      </svg>
+      Pornește Apelul
+    </button>
+
+    <div class="status-row">
+      <div class="dot" id="status-dot"></div>
+      <span id="interim-text">—</span>
+    </div>
+
+    <div id="chat">
+      <span class="empty-msg" id="empty-msg">Conversația va apărea aici...</span>
+    </div>
   </div>
-  <p class="tagline">Alege asistentul cu care vrei să vorbești</p>
 
-  <div class="cards">
+  <script>
+    const PHONE_SVG = `<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>`
 
-    <a href="/bot.html" class="card support">
-      <div class="card-icon">🎧</div>
-      <div class="card-title">Suport Clienți</div>
-      <p class="card-desc">Întrebări despre produse, prețuri, implementare și suport tehnic. Răspunde în română și rusă.</p>
-      <div class="card-arrow">Deschide →</div>
-    </a>
+    // ── State ─────────────────────────────────────────────────────────────────
+    let mode       = 'support'
+    let ws         = null
+    let audioCtx   = null
+    let processor  = null
+    let micStream  = null
+    let recording  = false
+    let ttsPlaying = false
+    let ttsBuffer  = ''
+    let streamBubble   = null
+    let streamTextNode = null
 
-    <a href="/orders.html" class="card orders">
-      <div class="card-icon">🛒</div>
-      <div class="card-title">Plasare Comenzi</div>
-      <p class="card-desc">Comandă vocal un produs TechMD — ghidat pas cu pas până la confirmare.</p>
-      <div class="card-arrow">Deschide →</div>
-    </a>
+    // ── Elements ──────────────────────────────────────────────────────────────
+    const callBtn   = document.getElementById('call-btn')
+    const statusDot = document.getElementById('status-dot')
+    const interimEl = document.getElementById('interim-text')
+    const chat      = document.getElementById('chat')
+    const tabBtns   = document.querySelectorAll('.tab-btn')
 
-  </div>
+    // ── WS route map ──────────────────────────────────────────────────────────
+    const WS_ROUTES = {
+      support:  '/ws/support',
+      bookings: '/ws/bookings',
+      orders:   '/ws/orders',
+    }
 
-  <p class="footer">TechMD SRL · str. Ștefan cel Mare 100, Chișinău</p>
+    // ── Tabs ──────────────────────────────────────────────────────────────────
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (recording) return
+        tabBtns.forEach(b => b.classList.remove('active'))
+        btn.classList.add('active')
+        mode = btn.dataset.mode
+      })
+    })
 
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function setDot(state) {
+      statusDot.className = 'dot' + (state ? ' ' + state : '')
+    }
+
+    function setInterim(text) {
+      interimEl.textContent = text || '—'
+      interimEl.className   = text ? 'active' : ''
+    }
+
+    function removeEmpty() {
+      const el = document.getElementById('empty-msg')
+      if (el) el.remove()
+    }
+
+    function esc(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    }
+
+    function ts() {
+      const n = new Date()
+      return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`
+    }
+
+    function addBubble(role, text) {
+      removeEmpty()
+      const row   = document.createElement('div')
+      row.className = `bubble-row ${role}`
+      const label = role === 'user' ? 'Tu' : role === 'error' ? 'Eroare' : 'Arina'
+      row.innerHTML = `<div class="bubble"><div class="sender">${label} · ${ts()}</div>${esc(text)}</div>`
+      chat.appendChild(row)
+      chat.scrollTop = chat.scrollHeight
+    }
+
+    function addThinking() {
+      removeEmpty()
+      const row = document.createElement('div')
+      row.className = 'bubble-row assistant'
+      row.id = 'thinking-bubble'
+      row.innerHTML = `<div class="bubble"><div class="thinking-dots"><span></span><span></span><span></span></div></div>`
+      chat.appendChild(row)
+      chat.scrollTop = chat.scrollHeight
+    }
+
+    function removeThinking() {
+      const el = document.getElementById('thinking-bubble')
+      if (el) el.remove()
+    }
+
+    // ── Streaming bubble ──────────────────────────────────────────────────────
+    function startStreamBubble() {
+      removeThinking()
+      removeEmpty()
+      const row = document.createElement('div')
+      row.className = 'bubble-row assistant'
+      row.innerHTML = `<div class="bubble"><div class="sender">Arina · ${ts()}</div><span class="stream-text"></span><span class="cursor"></span></div>`
+      chat.appendChild(row)
+      streamBubble   = row
+      streamTextNode = row.querySelector('.stream-text')
+      chat.scrollTop = chat.scrollHeight
+    }
+
+    function appendChunk(chunk) {
+      if (!streamTextNode) return
+      streamTextNode.textContent += chunk
+      chat.scrollTop = chat.scrollHeight
+    }
+
+    function finalizeStream() {
+      if (streamBubble) {
+        const c = streamBubble.querySelector('.cursor')
+        if (c) c.remove()
+      }
+      streamBubble   = null
+      streamTextNode = null
+    }
+
+    // ── Order card ────────────────────────────────────────────────────────────
+    function addOrderCard(order) {
+      removeEmpty()
+      const adresaRow = order.address && order.address !== 'N/A'
+        ? `<div class="order-card-row"><span class="label">Adresă</span><span class="value">${esc(order.address)}</span></div>`
+        : ''
+      const card = document.createElement('div')
+      card.className = 'order-card'
+      card.innerHTML = `
+        <div class="order-card-header">
+          ✅ Comandă plasată
+          <span class="order-card-id">${esc(order.id)}</span>
+        </div>
+        <div class="order-card-row"><span class="label">Preparate</span><span class="value">${esc(order.items)}</span></div>
+        <div class="order-card-row"><span class="label">Tip</span><span class="value">${esc(order.order_type)}</span></div>
+        ${adresaRow}
+        <div class="order-card-row"><span class="label">Client</span><span class="value">${esc(order.customer_name)}</span></div>
+      `
+      chat.appendChild(card)
+      chat.scrollTop = chat.scrollHeight
+    }
+
+    // ── TTS ───────────────────────────────────────────────────────────────────
+    async function speakText(text) {
+      if (!text || !text.trim()) return
+      ttsPlaying = true
+      try {
+        const res = await fetch('/api/tts', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ text }),
+        })
+        if (!res.ok) { ttsPlaying = false; return }
+        const url   = URL.createObjectURL(await res.blob())
+        const audio = new Audio(url)
+        audio.play()
+        audio.onended = () => { URL.revokeObjectURL(url); ttsPlaying = false }
+        audio.onerror = () => { URL.revokeObjectURL(url); ttsPlaying = false }
+      } catch { ttsPlaying = false }
+    }
+
+    // ── Audio pipeline ────────────────────────────────────────────────────────
+    function startPCM(stream) {
+      audioCtx  = new AudioContext({ sampleRate: 16000 })
+      const src = audioCtx.createMediaStreamSource(stream)
+      processor = audioCtx.createScriptProcessor(4096, 1, 1)
+      src.connect(processor)
+      processor.connect(audioCtx.destination)
+      processor.onaudioprocess = (e) => {
+        if (!ws || ws.readyState !== WebSocket.OPEN || ttsPlaying) return
+        const f32 = e.inputBuffer.getChannelData(0)
+        const i16 = new Int16Array(f32.length)
+        for (let i = 0; i < f32.length; i++) {
+          i16[i] = Math.max(-32768, Math.min(32767, Math.round(f32[i] * 32768)))
+        }
+        ws.send(i16.buffer)
+      }
+    }
+
+    function stopAudio() {
+      if (processor) { processor.disconnect(); processor = null }
+      if (audioCtx)  { audioCtx.close();       audioCtx  = null }
+      if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null }
+    }
+
+    // ── Message handler ───────────────────────────────────────────────────────
+    function handleMessage(msg) {
+      if (msg.type === 'interim') {
+        setInterim(msg.text)
+
+      } else if (msg.type === 'user') {
+        setInterim('')
+        addBubble('user', msg.text)
+
+      } else if (msg.type === 'thinking') {
+        setDot('thinking')
+        callBtn.disabled = true
+        addThinking()
+
+      // Streaming (support / bookings)
+      } else if (msg.type === 'assistant_chunk') {
+        if (!streamTextNode) { startStreamBubble(); ttsBuffer = '' }
+        ttsBuffer += msg.content
+        appendChunk(msg.content)
+
+      } else if (msg.type === 'assistant_end') {
+        finalizeStream()
+        setDot('listening')
+        callBtn.disabled = false
+        speakText(ttsBuffer)
+        ttsBuffer = ''
+
+      // Non-streaming (orders)
+      } else if (msg.type === 'assistant') {
+        removeThinking()
+        addBubble('assistant', msg.text)
+        setDot('listening')
+        callBtn.disabled = false
+        speakText(msg.text)
+
+      } else if (msg.type === 'order_confirmed') {
+        addOrderCard(msg.order)
+
+      } else if (msg.type === 'error') {
+        finalizeStream()
+        removeThinking()
+        addBubble('error', msg.message)
+        setDot('listening')
+        callBtn.disabled = false
+      }
+    }
+
+    // ── Session ───────────────────────────────────────────────────────────────
+    async function startSession() {
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      } catch {
+        setDot('error')
+        setInterim('Microfon indisponibil')
+        return
+      }
+
+      ws = new WebSocket(`ws://${location.host}${WS_ROUTES[mode]}`)
+      ws.binaryType = 'arraybuffer'
+
+      ws.onopen = () => {
+        recording = true
+        callBtn.classList.add('active')
+        callBtn.innerHTML = `${PHONE_SVG} Oprește Apelul`
+        tabBtns.forEach(b => b.disabled = true)
+        setDot('listening')
+        setInterim('')
+        startPCM(micStream)
+      }
+
+      ws.onmessage = (e) => handleMessage(JSON.parse(e.data))
+
+      ws.onclose = () => stopSession(false)
+
+      ws.onerror = () => {
+        setDot('error')
+        setInterim('Eroare conexiune')
+      }
+    }
+
+    function stopSession(closeWs = true) {
+      stopAudio()
+      finalizeStream()
+      removeThinking()
+      if (closeWs && ws && ws.readyState === WebSocket.OPEN) {
+        ws.close()
+        ws = null
+      }
+      recording  = false
+      ttsPlaying = false
+      ttsBuffer  = ''
+      callBtn.classList.remove('active')
+      callBtn.disabled = false
+      callBtn.innerHTML = `${PHONE_SVG} Pornește Apelul`
+      tabBtns.forEach(b => b.disabled = false)
+      setDot('')
+      setInterim('')
+    }
+
+    // ── Call button ───────────────────────────────────────────────────────────
+    callBtn.addEventListener('click', () => {
+      if (recording) stopSession(true)
+      else           startSession()
+    })
+  </script>
 </body>
 </html>

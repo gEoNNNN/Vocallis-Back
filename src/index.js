@@ -7,12 +7,20 @@ import websocket from '@fastify/websocket'
 import staticFiles from '@fastify/static'
 import { createSTTConnection, isOpen } from './stt.js'
 import { askAssistant } from './llm.js'
+import { askBookings } from './bookings-llm.js'
 import { askGPT } from './gpt.js'
 import { generateSpeech } from './tts.js'
+import { sendLead } from './telegram.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const app = Fastify({ logger: true })
+
+function tsNow() {
+  const n = new Date()
+  return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`
+}
+
 const PORT = Number(process.env.PORT) || 3000
 
 // ── Plugins ───────────────────────────────────────────────────────────────────
@@ -286,7 +294,7 @@ app.get('/ws/support', { websocket: true }, async (socket, req) => {
   socket.on('error', (err) => app.log.error('[BOT/WS] ' + err.message))
 })
 
-// ── Bookings bot route ───────────────────────────────────────────────────────
+// ── Bookings bot route (GPT-4o + Google Calendar tool calling) ───────────────
 
 app.get('/ws/bookings', { websocket: true }, async (socket, req) => {
   const lang = req.query.lang === 'ru' ? 'ru' : 'ro'
@@ -310,25 +318,37 @@ app.get('/ws/bookings', { websocket: true }, async (socket, req) => {
     : 'Bună ziua! Mă numesc Arina de la Casa Verde Bistro. Doriți să faceți o rezervare?'
   setTimeout(() => send({ type: 'assistant', text: greeting }), 500)
 
-  const session = { accumulated: '', thinking: false, pending: '' }
+  const session = {
+    history:     [],
+    accumulated: '',
+    thinking:    false,
+    pending:     '',
+    transcript:  [],
+    completed:   false,
+    bookingData: null,
+  }
 
   async function processUtterance(userText) {
+    session.transcript.push({ role: 'client', text: userText, ts: tsNow() })
     send({ type: 'user', text: userText })
-    history.push({ role: 'user', content: userText })
     send({ type: 'thinking' })
     session.thinking = true
 
-    let fullResponse = ''
     try {
-      await askGPT(userText, (chunk) => {
-        fullResponse += chunk
-        send({ type: 'assistant_chunk', content: chunk })
-      }, history.slice(0, -1))
-      history.push({ role: 'assistant', content: fullResponse })
-      send({ type: 'assistant_end' })
+      const result = await askBookings(session.history, userText)
+      session.history.push(...result.historyEntries)
+      session.transcript.push({ role: 'arina', text: result.text, ts: tsNow() })
+
+      if (result.booking) {
+        session.completed   = true
+        session.bookingData = result.booking
+        send({ type: 'booking_confirmed', booking: result.booking })
+      }
+
+      send({ type: 'assistant', text: result.text })
     } catch (err) {
       app.log.error('[BOOKINGS/GPT] ' + err.message)
-      send({ type: 'error', message: 'Eroare GPT: ' + err.message })
+      send({ type: 'error', message: 'Eroare la procesarea rezervării.' })
     } finally {
       session.thinking = false
       const queued = session.pending.trim()
@@ -366,7 +386,14 @@ app.get('/ws/bookings', { websocket: true }, async (socket, req) => {
   dg.on('error', (err) => app.log.error('[BOOKINGS/STT] ' + (err?.message ?? err)))
 
   socket.on('message', (chunk) => { if (isOpen(dg)) dg.sendMedia(chunk) })
-  socket.on('close', () => { if (isOpen(dg)) dg.socket.close() })
+  socket.on('close', () => {
+    if (isOpen(dg)) dg.socket.close()
+    if (session.completed && session.bookingData) {
+      sendLead('booking', session.bookingData, session.transcript).catch(
+        (err) => app.log.error('[BOOKINGS/TG] ' + err.message)
+      )
+    }
+  })
   socket.on('error', (err) => app.log.error('[BOOKINGS/WS] ' + err.message))
 })
 
@@ -393,9 +420,18 @@ app.get('/ws/orders', { websocket: true }, async (socket, req) => {
     : 'Bună ziua! Sunt Arina de la Casa Verde Bistro. Ce doriți să comandați astăzi?'
   setTimeout(() => send({ type: 'assistant', text: greeting }), 500)
 
-  const session = { history: [], accumulated: '', thinking: false, pending: '' }
+  const session = {
+    history:    [],
+    accumulated: '',
+    thinking:   false,
+    pending:    '',
+    transcript: [],
+    completed:  false,
+    orderData:  null,
+  }
 
   async function processUtterance(userText) {
+    session.transcript.push({ role: 'client', text: userText, ts: tsNow() })
     send({ type: 'user', text: userText })
     send({ type: 'thinking' })
     session.thinking = true
@@ -403,14 +439,20 @@ app.get('/ws/orders', { websocket: true }, async (socket, req) => {
     try {
       const result = await askAssistant(session.history, userText, lang)
       session.history.push(...result.historyEntries)
-      if (result.order) send({ type: 'order_confirmed', order: result.order })
+      session.transcript.push({ role: 'arina', text: result.text, ts: tsNow() })
+
+      if (result.order) {
+        session.completed = true
+        session.orderData = result.order
+        send({ type: 'order_confirmed', order: result.order })
+      }
+
       send({ type: 'assistant', text: result.text })
     } catch (err) {
       app.log.error('[ORDERS/GPT] ' + err.message)
       send({ type: 'error', message: 'Eroare la procesarea comenzii.' })
     } finally {
       session.thinking = false
-      // Procesează fraza rostită în timp ce GPT gândea (nu o pierde)
       const queued = session.pending.trim()
       if (queued) {
         session.pending = ''
@@ -449,7 +491,14 @@ app.get('/ws/orders', { websocket: true }, async (socket, req) => {
   dg.on('error', (err) => app.log.error('[ORDERS/STT] ' + (err?.message ?? err)))
 
   socket.on('message', (chunk) => { if (isOpen(dg)) dg.sendMedia(chunk) })
-  socket.on('close', () => { if (isOpen(dg)) dg.socket.close() })
+  socket.on('close', () => {
+    if (isOpen(dg)) dg.socket.close()
+    if (session.completed && session.orderData) {
+      sendLead('order', session.orderData, session.transcript).catch(
+        (err) => app.log.error('[ORDERS/TG] ' + err.message)
+      )
+    }
+  })
   socket.on('error', (err) => app.log.error('[ORDERS/WS] ' + err.message))
 })
 
