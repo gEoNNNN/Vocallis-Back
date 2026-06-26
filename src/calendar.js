@@ -50,19 +50,40 @@ function getCalendar() {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Parse "YYYY-MM-DD" + "HH:MM" into two ISO strings (start, end).
+ * Compute the UTC offset string for Europe/Chisinau on a given date.
+ * Correctly handles DST (UTC+2 winter, UTC+3 summer).
+ * @param {string} dateStr - "YYYY-MM-DD"
+ * @returns {string} e.g. "+03:00" or "+02:00"
+ */
+function chisinauOffset(dateStr) {
+  const probe      = new Date(`${dateStr}T12:00:00Z`)
+  const chisinauMs = new Date(
+    probe.toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })
+  ).getTime()
+  const utcMs      = new Date(
+    probe.toLocaleString('en-US', { timeZone: 'UTC' })
+  ).getTime()
+  const offsetMin  = Math.round((chisinauMs - utcMs) / 60000)
+  const sign = offsetMin >= 0 ? '+' : '-'
+  const h    = String(Math.floor(Math.abs(offsetMin) / 60)).padStart(2, '0')
+  const m    = String(Math.abs(offsetMin) % 60).padStart(2, '0')
+  return `${sign}${h}:${m}`
+}
+
+/**
+ * Build RFC3339 start/end strings for a 1-hour slot in Europe/Chisinau time.
  * @param {string} date  - "2026-06-25"
  * @param {string} time  - "19:00"
  * @returns {{ start: string, end: string }}
  */
 function slotRange(date, time) {
+  const offset = chisinauOffset(date)
   const [h, m] = time.split(':').map(Number)
-  const start  = new Date(`${date}T${time}:00`)
-  const end    = new Date(start)
-  end.setHours(end.getHours() + 1)
+  const endH   = h + 1
+  const pad    = (n) => String(n).padStart(2, '0')
   return {
-    start: start.toISOString(),
-    end:   end.toISOString(),
+    start: `${date}T${pad(h)}:${pad(m)}:00${offset}`,
+    end:   `${date}T${pad(endH)}:${pad(m)}:00${offset}`,
   }
 }
 
@@ -91,8 +112,9 @@ function businessHours(date) {
  * @returns {Promise<Map<string, number>>}  hour "HH:00" → overlap count
  */
 async function dayEventCounts(date, calendar) {
-  const dayStart = new Date(`${date}T00:00:00`).toISOString()
-  const dayEnd   = new Date(`${date}T23:59:59`).toISOString()
+  const offset   = chisinauOffset(date)
+  const dayStart = `${date}T00:00:00${offset}`
+  const dayEnd   = `${date}T23:59:59${offset}`
 
   const res = await calendar.events.list({
     calendarId:   CALENDAR_ID,
