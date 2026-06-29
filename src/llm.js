@@ -1,4 +1,4 @@
-import OpenAI from 'openai'
+﻿import OpenAI from 'openai'
 import { KNOWLEDGE_BASE } from './knowledge-base.js'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -78,7 +78,13 @@ function buildSystemPrompt(lang = 'ro') {
 2. Тип заказа: на месте или доставка
 3. Если доставка: полный адрес доставки
 4. Имя клиента
-Когда все подтверждено — вызови place_order. Для заказов на месте используй "N/A" в поле address.
+
+ШАГ ПОДТВЕРЖДЕНИЯ (обязателен перед place_order):
+- Когда все данные собраны, кратко резюмируй: "Итак, подтверждаю заказ: [блюда], [тип], на имя [Имя]. Всё верно?"
+- Вызывай place_order ТОЛЬКО если клиент подтверждает (да, верно, правильно и т.п.).
+- Если клиент говорит, что что-то неверно, уточни что изменить, внеси правки, затем снова резюмируй и попроси подтверждение.
+- Не вызывай place_order без явного подтверждения.
+Для заказов на месте используй "N/A" в поле address.
 
 ${KNOWLEDGE_BASE}`
   }
@@ -97,7 +103,11 @@ Colectează prin întrebări succinte:
 2. Tipul comenzii: local (la masă) sau livrare
 3. Dacă livrare: adresa de livrare completă
 4. Numele clientului
-Când ai toate câmpurile confirmate, apelează place_order. Nu apela funcția înainte.
+PAS DE CONFIRMARE (obligatoriu inainte de place_order):
+- Cand ai toate datele, rezuma comanda: "Deci, confirm comanda: [preparate], [tip comanda], pe numele [Nume]. Este corect?"
+- Apeleaza place_order DOAR daca clientul confirma (da, corect, perfect etc.).
+- Daca clientul spune ca ceva nu e corect, intreaba ce trebuie modificat, colecteaza modificarea, rezuma din nou si cere confirmare.
+- Nu apela place_order fara confirmare explicita.
 Pentru comenzi locale, folosește “N/A” la câmpul address.
 
 ${KNOWLEDGE_BASE}`

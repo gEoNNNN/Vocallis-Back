@@ -9,19 +9,48 @@ const deepgram = new DeepgramClient({ apiKey: process.env.DEEPGRAM_API_KEY })
  * @param {object} opts - opțiuni opționale
  * @returns {Promise<object>} conexiune gata de utilizat
  */
+const KEYTERMS = {
+  ro: [
+    // Numbers 1-20
+    'unu', 'doi', 'trei', 'patru', 'cinci',
+    'șase', 'șapte', 'opt', 'nouă', 'zece',
+    'unsprezece', 'doisprezece', 'treisprezece', 'paisprezece', 'cincisprezece',
+    'șaisprezece', 'șaptesprezece', 'optsprezece', 'nouăsprezece', 'douăzeci',
+    // Days
+    'astăzi', 'mâine', 'poimâine',
+    // Menu items
+    'Carbonara', 'avocado', 'bruschete', 'cheesecake',
+    'limonadă', 'smoothie', 'espresso', 'cappuccino',
+  ],
+  ru: [
+    // Numbers 1-20
+    'один', 'два', 'три', 'четыре', 'пять',
+    'шесть', 'семь', 'восемь', 'девять', 'десять',
+    'одиннадцать', 'двенадцать', 'тринадцать', 'четырнадцать', 'пятнадцать',
+    'шестнадцать', 'семнадцать', 'восемнадцать', 'девятнадцать', 'двадцать',
+    // Days
+    'сегодня', 'завтра', 'послезавтра',
+    // Menu items
+    'Карбонара', 'авокадо', 'брускетты', 'чизкейк',
+    'лимонад', 'смузи', 'эспрессо', 'капучино',
+  ],
+}
+
 export async function createSTTConnection(opts = {}) {
+  const lang = opts.language ?? 'ro'
   // În SDK v5 createConnection() returnează un Promise
   const conn = await deepgram.listen.v1.createConnection({
     model: 'nova-3',
     language: 'ro',
-    smart_format: true,
+    smart_format: false,
     interim_results: true,
-    utterance_end_ms: 1500,
-    endpointing: 300,
+    utterance_end_ms: 2000,
+    endpointing: 800,
     punctuate: true,
     vad_events: true,
     encoding: 'linear16',
     sample_rate: 16000,
+    keyterms: KEYTERMS[lang] ?? KEYTERMS.ro,
     ...opts,
   })
 

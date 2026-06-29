@@ -47,6 +47,43 @@
       margin-top: 5px;
     }
 
+    /* ── Language toggle ── */
+    .lang-toggle {
+      display: flex;
+      justify-content: center;
+      margin-top: 18px;
+    }
+
+    .lang-group {
+      display: inline-flex;
+      border: 1.5px solid #c0dbd6;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.45);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .lang-btn {
+      padding: 4px 16px;
+      border: none;
+      background: transparent;
+      color: #5a9090;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      border-radius: 999px;
+      letter-spacing: 0.6px;
+      transition: all 0.18s;
+    }
+    .lang-btn:hover:not(.active) { color: #2a6058; }
+    .lang-btn.active {
+      background: #fff;
+      color: #1a2e2a;
+      box-shadow: 0 1px 4px rgba(30,90,80,0.12);
+    }
+    .lang-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
     /* ── Tabs ── */
     .tabs {
       display: flex;
@@ -295,6 +332,13 @@
     <h1 class="card-title">Vorbește cu Agentul AI</h1>
     <p class="card-subtitle">Selectează tipul de agent și apasă butonul pentru a începe.</p>
 
+    <div class="lang-toggle">
+      <div class="lang-group">
+        <button class="lang-btn active" data-lang="ro">RO</button>
+        <button class="lang-btn" data-lang="ru">RU</button>
+      </div>
+    </div>
+
     <div class="tabs">
       <button class="tab-btn active" data-mode="support">General / Suport</button>
       <button class="tab-btn" data-mode="bookings">Programări</button>
@@ -323,6 +367,7 @@
 
     // ── State ─────────────────────────────────────────────────────────────────
     let mode       = 'support'
+    let lang       = 'ro'
     let ws         = null
     let audioCtx   = null
     let processor  = null
@@ -339,6 +384,7 @@
     const interimEl = document.getElementById('interim-text')
     const chat      = document.getElementById('chat')
     const tabBtns   = document.querySelectorAll('.tab-btn')
+    const langBtns  = document.querySelectorAll('.lang-btn')
 
     // ── WS route map ──────────────────────────────────────────────────────────
     const WS_ROUTES = {
@@ -346,6 +392,16 @@
       bookings: '/ws/bookings',
       orders:   '/ws/orders',
     }
+
+    // ── Language toggle ────────────────────────────────────────────────────────
+    langBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (recording) return
+        langBtns.forEach(b => b.classList.remove('active'))
+        btn.classList.add('active')
+        lang = btn.dataset.lang
+      })
+    })
 
     // ── Tabs ──────────────────────────────────────────────────────────────────
     tabBtns.forEach(btn => {
@@ -464,7 +520,7 @@
         const res = await fetch('/api/tts', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ text }),
+          body:    JSON.stringify({ text, lang }),
         })
         if (!res.ok) { ttsPlaying = false; return }
         const url   = URL.createObjectURL(await res.blob())
@@ -556,7 +612,7 @@
         return
       }
 
-      ws = new WebSocket(`ws://${location.host}${WS_ROUTES[mode]}`)
+      ws = new WebSocket(`ws://${location.host}${WS_ROUTES[mode]}?lang=${lang}`)
       ws.binaryType = 'arraybuffer'
 
       ws.onopen = () => {
@@ -564,6 +620,7 @@
         callBtn.classList.add('active')
         callBtn.innerHTML = `${PHONE_SVG} Oprește Apelul`
         tabBtns.forEach(b => b.disabled = true)
+        langBtns.forEach(b => b.disabled = true)
         setDot('listening')
         setInterim('')
         startPCM(micStream)
@@ -594,6 +651,7 @@
       callBtn.disabled = false
       callBtn.innerHTML = `${PHONE_SVG} Pornește Apelul`
       tabBtns.forEach(b => b.disabled = false)
+      langBtns.forEach(b => b.disabled = false)
       setDot('')
       setInterim('')
     }

@@ -83,7 +83,19 @@ function buildSystemPrompt() {
 ` +
     `
 ` +
-    `Odată ce ai toate patru câmpuri confirmate și slotul e disponibil, apelezi place_booking.
+    `Odată ce ai toate patru câmpuri confirmate și slotul e disponibil, TREBUIE să urmezi pașii de confirmare de mai jos.
+` +
+    `
+` +
+    `PAS DE CONFIRMARE (obligatoriu înainte de place_booking):
+` +
+    `- Rezumă rezervarea în formă vorbită: "Deci, confirm rezervarea: [data în formă vorbită], la [ora în formă vorbită], pentru [N] persoane, pe numele [Nume]. Este corect?"
+` +
+    `- Apelează place_booking DOAR dacă clientul răspunde afirmativ (da, corect, perfect, exact, да etc.).
+` +
+    `- Dacă clientul spune că ceva nu e corect (nu, greșit, schimbă etc.), întreabă ce trebuie modificat, colectează modificarea, apoi rezumă din nou și cere confirmare.
+` +
+    `- Nu apela place_booking fără confirmare explicită.
 ` +
     `
 ` +
@@ -99,7 +111,7 @@ function buildSystemPrompt() {
 ` +
     `- Nu comenta niciodată dacă o oră e "în afara programului" fără să fi chemat mai întâi check_slot.
 ` +
-    `- Dacă clientul vorbește rusă, răspunzi imediat în rusă.
+    `- Dacă clientul vorbește rusă, răspunzi imediat în rusă (inclusiv rezumatul de confirmare).
 ` +
     `- Nu vorbi despre altceva în afară de rezervare și informații de bază.
 ` +

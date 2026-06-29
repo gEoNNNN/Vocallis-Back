@@ -90,10 +90,12 @@ app.get('/ws/assistant', { websocket: true }, async (socket, _req) => {
   }
 
   const session = {
-    history: [],
-    accumulated: '',
-    thinking: false,
-    pending: '',
+    history:        [],
+    accumulated:    '',
+    lastInterim:    '',
+    thinking:       false,
+    pending:        '',
+    utteranceTimer: null,
   }
 
   async function processUtterance(userText) {
@@ -126,24 +128,28 @@ app.get('/ws/assistant', { websocket: true }, async (socket, _req) => {
       const text = alt?.transcript ?? ''
 
       if (!data.is_final) {
-        if (text) send({ type: 'interim', text: session.accumulated + text })
+        if (text) {
+          session.lastInterim = text
+          clearTimeout(session.utteranceTimer)
+          session.utteranceTimer = setTimeout(flush, 2500)
+          send({ type: 'interim', text: session.accumulated + text })
+        }
         return
       }
 
-      if (text) session.accumulated += (session.accumulated ? ' ' : '') + text
+      if (text) { session.accumulated += (session.accumulated ? ' ' : '') + text; session.lastInterim = '' }
+      clearTimeout(session.utteranceTimer)
+      session.utteranceTimer = setTimeout(flush, data.speech_final ? 500 : 2000)
     }
 
-    if (data.type === 'UtteranceEnd') {
-      const userText = session.accumulated.trim()
+    if (data.type === 'UtteranceEnd') { clearTimeout(session.utteranceTimer); flush() }
+
+    function flush() {
+      const userText = (session.accumulated + (session.lastInterim ? ' ' + session.lastInterim : '')).trim()
       session.accumulated = ''
+      session.lastInterim = ''
       if (!userText) return
-
-      // Dacă GPT încă răspunde, păstrează fraza în coadă în loc s-o pierzi
-      if (session.thinking) {
-        session.pending += (session.pending ? ' ' : '') + userText
-        return
-      }
-
+      if (session.thinking) { session.pending += (session.pending ? ' ' : '') + userText; return }
       processUtterance(userText)
     }
   })
@@ -231,7 +237,7 @@ app.get('/ws/support', { websocket: true }, async (socket, req) => {
     : 'Bună ziua! Mă numesc Arina de la Casa Verde Bistro. Cu ce informații vă pot ajuta?'
   setTimeout(() => send({ type: 'assistant', text: greeting }), 500)
 
-  const session = { accumulated: '', thinking: false, pending: '' }
+  const session = { accumulated: '', lastInterim: '', thinking: false, pending: '', utteranceTimer: null }
 
   async function processUtterance(userText) {
     send({ type: 'user', text: userText })
@@ -265,23 +271,27 @@ app.get('/ws/support', { websocket: true }, async (socket, req) => {
       const alt = data.channel?.alternatives?.[0]
       const text = alt?.transcript ?? ''
       if (!data.is_final) {
-        if (text) send({ type: 'interim', text: session.accumulated + text })
+        if (text) {
+          session.lastInterim = text
+          clearTimeout(session.utteranceTimer)
+          session.utteranceTimer = setTimeout(flush, 2500)
+          send({ type: 'interim', text: session.accumulated + text })
+        }
         return
       }
-      if (text) session.accumulated += (session.accumulated ? ' ' : '') + text
+      if (text) { session.accumulated += (session.accumulated ? ' ' : '') + text; session.lastInterim = '' }
+      clearTimeout(session.utteranceTimer)
+      session.utteranceTimer = setTimeout(flush, data.speech_final ? 500 : 2000)
     }
 
-    if (data.type === 'UtteranceEnd') {
-      const userText = session.accumulated.trim()
+    if (data.type === 'UtteranceEnd') { clearTimeout(session.utteranceTimer); flush() }
+
+    function flush() {
+      const userText = (session.accumulated + (session.lastInterim ? ' ' + session.lastInterim : '')).trim()
       session.accumulated = ''
+      session.lastInterim = ''
       if (!userText) return
-
-      // Dacă GPT încă răspunde, păstrează fraza în coadă în loc s-o pierzi
-      if (session.thinking) {
-        session.pending += (session.pending ? ' ' : '') + userText
-        return
-      }
-
+      if (session.thinking) { session.pending += (session.pending ? ' ' : '') + userText; return }
       processUtterance(userText)
     }
   })
@@ -319,13 +329,15 @@ app.get('/ws/bookings', { websocket: true }, async (socket, req) => {
   setTimeout(() => send({ type: 'assistant', text: greeting }), 500)
 
   const session = {
-    history:     [],
-    accumulated: '',
-    thinking:    false,
-    pending:     '',
-    transcript:  [],
-    completed:   false,
-    bookingData: null,
+    history:        [],
+    accumulated:    '',
+    lastInterim:    '',
+    thinking:       false,
+    pending:        '',
+    transcript:     [],
+    completed:      false,
+    bookingData:    null,
+    utteranceTimer: null,
   }
 
   async function processUtterance(userText) {
@@ -364,20 +376,27 @@ app.get('/ws/bookings', { websocket: true }, async (socket, req) => {
       const alt = data.channel?.alternatives?.[0]
       const text = alt?.transcript ?? ''
       if (!data.is_final) {
-        if (text) send({ type: 'interim', text: session.accumulated + text })
+        if (text) {
+          session.lastInterim = text
+          clearTimeout(session.utteranceTimer)
+          session.utteranceTimer = setTimeout(flush, 2500)
+          send({ type: 'interim', text: session.accumulated + text })
+        }
         return
       }
-      if (text) session.accumulated += (session.accumulated ? ' ' : '') + text
+      if (text) { session.accumulated += (session.accumulated ? ' ' : '') + text; session.lastInterim = '' }
+      clearTimeout(session.utteranceTimer)
+      session.utteranceTimer = setTimeout(flush, data.speech_final ? 500 : 2000)
     }
 
-    if (data.type === 'UtteranceEnd') {
-      const userText = session.accumulated.trim()
+    if (data.type === 'UtteranceEnd') { clearTimeout(session.utteranceTimer); flush() }
+
+    function flush() {
+      const userText = (session.accumulated + (session.lastInterim ? ' ' + session.lastInterim : '')).trim()
       session.accumulated = ''
+      session.lastInterim = ''
       if (!userText) return
-      if (session.thinking) {
-        session.pending += (session.pending ? ' ' : '') + userText
-        return
-      }
+      if (session.thinking) { session.pending += (session.pending ? ' ' : '') + userText; return }
       processUtterance(userText)
     }
   })
@@ -421,13 +440,15 @@ app.get('/ws/orders', { websocket: true }, async (socket, req) => {
   setTimeout(() => send({ type: 'assistant', text: greeting }), 500)
 
   const session = {
-    history:    [],
-    accumulated: '',
-    thinking:   false,
-    pending:    '',
-    transcript: [],
-    completed:  false,
-    orderData:  null,
+    history:        [],
+    accumulated:    '',
+    lastInterim:    '',
+    thinking:       false,
+    pending:        '',
+    transcript:     [],
+    completed:      false,
+    orderData:      null,
+    utteranceTimer: null,
   }
 
   async function processUtterance(userText) {
@@ -466,23 +487,27 @@ app.get('/ws/orders', { websocket: true }, async (socket, req) => {
       const alt = data.channel?.alternatives?.[0]
       const text = alt?.transcript ?? ''
       if (!data.is_final) {
-        if (text) send({ type: 'interim', text: session.accumulated + text })
+        if (text) {
+          session.lastInterim = text
+          clearTimeout(session.utteranceTimer)
+          session.utteranceTimer = setTimeout(flush, 2500)
+          send({ type: 'interim', text: session.accumulated + text })
+        }
         return
       }
-      if (text) session.accumulated += (session.accumulated ? ' ' : '') + text
+      if (text) { session.accumulated += (session.accumulated ? ' ' : '') + text; session.lastInterim = '' }
+      clearTimeout(session.utteranceTimer)
+      session.utteranceTimer = setTimeout(flush, data.speech_final ? 500 : 2000)
     }
 
-    if (data.type === 'UtteranceEnd') {
-      const userText = session.accumulated.trim()
+    if (data.type === 'UtteranceEnd') { clearTimeout(session.utteranceTimer); flush() }
+
+    function flush() {
+      const userText = (session.accumulated + (session.lastInterim ? ' ' + session.lastInterim : '')).trim()
       session.accumulated = ''
+      session.lastInterim = ''
       if (!userText) return
-
-      // Dacă GPT încă răspunde, păstrează fraza în coadă în loc s-o pierzi
-      if (session.thinking) {
-        session.pending += (session.pending ? ' ' : '') + userText
-        return
-      }
-
+      if (session.thinking) { session.pending += (session.pending ? ' ' : '') + userText; return }
       processUtterance(userText)
     }
   })
